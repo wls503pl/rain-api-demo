@@ -1,3 +1,6 @@
+// Create Merchant Routes
+
+import { registerApiKey } from "../middleware/auth";
 import { Router } from "express";
 import crypto from "crypto";
 
@@ -15,6 +18,9 @@ router.post("/merchants", (req, res) => {
     }
 
     const apiKey = crypto.randomBytes(24).toString("hex");
+
+    // Register an API Key when creating a merchant account
+    registerApiKey(apiKey);
 
     const merchant = {
         id: merchants.length + 1,
