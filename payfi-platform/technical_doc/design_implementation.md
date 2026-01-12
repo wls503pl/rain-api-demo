@@ -1,83 +1,84 @@
 # PayFi Platform - Technical Documentation
 
-## Product Vision
+## Overview
 
-Enable fintech companies to onboard merchants and issue digital payment infrastructure in minutes, not weeks. PayFi abstracts away the complexity of payment rails, wallet management, and card issuing—allowing businesses to focus on customer experience.
-
----
-
-## Phase 1: Merchant Onboarding ✓
-
-### Problem Solved
-
-When merchants want to integrate with a payment provider, they need:
-
--   A simple way to register their business
--   Immediate access credentials (API Key)
--   Ability to make authenticated API calls
-
-### Solution
-
-PayFi provides a one-step merchant registration that automatically generates secure API credentials.
-
-### How It Works
-
-**Endpoint:** `POST /api/merchants`
-
-**Request:**
-
-```json
-{
-    "name": "Test Company"
-}
-```
-
-**Response:**
-
-```json
-{
-    "message": "Merchant created",
-    "merchant": {
-        "id": 1,
-        "name": "Test Company",
-        "apiKey": "9a8f3c2e7b1d4f..."
-    }
-}
-```
-
-### What This Enables
-
--   Merchants can self-onboard without manual KYC delays
--   Each merchant gets a unique API Key for authentication
--   Foundation for wallet creation and payment processing
+This is a personal learning project to understand Rain's payment infrastructure architecture, specifically their merchant integration, wallet management, fiat-to-stablecoin flows, card issuing, and webhook systems. Built as a reference implementation for studying fintech infrastructure patterns.
 
 ---
 
-## Phase 2: API Key Authentication ✓
+# Phase 1: Merchant Integration
 
-### Problem Solved
+## Why Create Merchants?
 
-After merchants receive their API Key, we need a way to validate that requests actually come from authenticated merchants. Without this, anyone could impersonate a merchant and access their data.
+For a payment platform to function, external businesses need a way to join and access APIs. A merchant is simply a registered business that can make authenticated requests to the platform.
 
-### Solution Implemented
+Without merchant registration, there's no entry point for businesses to use the payment infrastructure.
 
-**In `src/routes/merchants.ts`:**
-When a merchant is created, we now call `registerApiKey(apiKey)` to store the API Key in our authentication system. This creates a registry of valid keys that can be checked on every request.
+## Implementation: Merchant Registration
 
-Why this matters: The API Key needs to persist somewhere so the authentication middleware can validate it later.
+Create file structure:
 
-**In `src/server.ts`:**
-We added a protected endpoint `GET /api/protected` that requires valid API Key authentication. This endpoint demonstrates how authentication works—only requests with a valid API Key in the `X-API-Key` header will succeed.
+```
+mkdir src/routes
+touch src/routes/merchants.ts
+```
 
-Why this matters: This proves that our authentication middleware is working before we protect more critical endpoints like wallets and payments.
+This file handles the merchant registration endpoint. When a business signs up, the system generates their API Key and stores their account.
 
-### What This Enables
+**Test the endpoint:**
 
--   Only authenticated merchants can access their data
--   API Key is validated on every protected request
--   Foundation for wallet and payment endpoints
+```bash
+curl -X POST http://localhost:3000/api/merchants \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test Company"}'
+```
 
-### Proof of Concept
+**Success:** You receive a response with the merchant's generated API Key.
 
-**Merchant Onboarding Test:**
-![Merchant Integration Success](../img/merchant_integration/merchant_onboarding.png)
+---
+
+## Why API Key Authentication?
+
+Once merchants register, the platform must verify every request actually comes from that merchant. An API Key acts as credentials—like a username/password, but for automated systems.
+
+Without authentication, anyone could pretend to be a merchant and access their wallets or issue cards on their behalf.
+
+## Implementation: Authentication Middleware
+
+Create file:
+
+```
+mkdir src/middleware
+touch src/middleware/auth.ts
+```
+
+This file contains two functions:
+
+-   `registerApiKey()`: Stores a newly generated API Key when a merchant signs up
+-   `apiKeyAuth()`: Middleware that checks if incoming requests have a valid API Key
+
+Update `src/server.ts` to import the authentication middleware and create a protected test endpoint.
+
+**Test authentication using the API Key from merchant registration:**
+
+```bash
+curl -X GET http://localhost:3000/api/protected \
+  -H "X-API-Key: YOUR_API_KEY_HERE"
+```
+
+Replace `YOUR_API_KEY_HERE` with the actual API Key you received from the merchant registration response.
+
+**Example:**
+![API Key Authentication Test](../img/merchant_integration/access_protected_endpoint.png)
+
+**Success:** You see the message "You have access to protected resource"
+
+**Failure (without API Key or with invalid key):** You get a 401 or 403 error.
+
+---
+
+## What This Enables
+
+-   Merchants can only access resources they own
+-   All future features (wallets, cards, payments) can assume requests are from authenticated merchants
+-   The platform has a security foundation for all protected endpoints
