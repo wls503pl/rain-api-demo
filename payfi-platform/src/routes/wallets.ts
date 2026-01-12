@@ -20,35 +20,24 @@ const router = Router();
 // In-memory wallet storage (will migrate to database later)
 const wallets: any[] = [];
 
+// In-memory ledger (transaction history)
+const transactions: any[] = [];
+
 /**
  * POST /api/wallets
  *
  * Create a wallet for the authenticated merchant
- *
- * Headers:
- * - X-API-Key: merchant API key
- *
- * Process:
- * 1. Authenticate merchant using API Key
- * 2. Create a wallet linked to this merchant
- * 3. Initialize balance to 0
- * 4. Store wallet in memory
- *
- * Output:
- * - Wallet object (id, merchantId, balance)
  */
 router.post("/wallets", apiKeyAuth, (req: any, res) => {
     const merchant = req.merchant;
 
-    // Create wallet object
     const wallet = {
         id: wallets.length + 1,
         merchantId: merchant.id,
-        balance: 0, // All wallets start empty
+        balance: 0,
         createdAt: new Date(),
     };
 
-    // Store wallet
     wallets.push(wallet);
 
     res.json({
@@ -61,14 +50,6 @@ router.post("/wallets", apiKeyAuth, (req: any, res) => {
  * GET /api/wallets
  *
  * Get all wallets belonging to authenticated merchant
- *
- * Headers:
- * - X-API-Key: merchant API key
- *
- * Process:
- * 1. Authenticate merchant
- * 2. Filter wallets by merchantId
- * 3. Return wallet list
  */
 router.get("/wallets", apiKeyAuth, (req: any, res) => {
     const merchant = req.merchant;
@@ -77,6 +58,109 @@ router.get("/wallets", apiKeyAuth, (req: any, res) => {
 
     res.json({
         wallets: merchantWallets,
+    });
+});
+
+/**
+ * POST /api/wallets/deposit
+ *
+ * Add funds to wallet (simulate top-up / funding)
+ *
+ * Input: { amount: number }
+ */
+router.post("/wallets/deposit", apiKeyAuth, (req: any, res) => {
+    const merchant = req.merchant;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const wallet = wallets.find((w) => w.merchantId === merchant.id);
+
+    if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+    }
+
+    wallet.balance += amount;
+
+    const tx = {
+        id: transactions.length + 1,
+        merchantId: merchant.id,
+        walletId: wallet.id,
+        type: "deposit",
+        amount,
+        balanceAfter: wallet.balance,
+        createdAt: new Date(),
+    };
+
+    transactions.push(tx);
+
+    res.json({
+        message: "Deposit successful",
+        wallet,
+        transaction: tx,
+    });
+});
+
+/**
+ * POST /api/wallets/withdraw
+ *
+ * Deduct funds from wallet (simulate spending / payments)
+ *
+ * Input: { amount: number }
+ */
+router.post("/wallets/withdraw", apiKeyAuth, (req: any, res) => {
+    const merchant = req.merchant;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const wallet = wallets.find((w) => w.merchantId === merchant.id);
+
+    if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+    }
+
+    if (wallet.balance < amount) {
+        return res.status(400).json({ error: "Insufficient balance" });
+    }
+
+    wallet.balance -= amount;
+
+    const tx = {
+        id: transactions.length + 1,
+        merchantId: merchant.id,
+        walletId: wallet.id,
+        type: "withdraw",
+        amount,
+        balanceAfter: wallet.balance,
+        createdAt: new Date(),
+    };
+
+    transactions.push(tx);
+
+    res.json({
+        message: "Withdrawal successful",
+        wallet,
+        transaction: tx,
+    });
+});
+
+/**
+ * GET /api/wallets/transactions
+ *
+ * View all ledger entries for current merchant
+ */
+router.get("/wallets/transactions", apiKeyAuth, (req: any, res) => {
+    const merchant = req.merchant;
+
+    const merchantTx = transactions.filter((t) => t.merchantId === merchant.id);
+
+    res.json({
+        transactions: merchantTx,
     });
 });
 

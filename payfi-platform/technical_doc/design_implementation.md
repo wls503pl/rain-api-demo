@@ -130,8 +130,88 @@ curl -X GET http://localhost:3000/api/wallets \
 
 ---
 
+## Why Wallet Ledger and Fund Movement?
+
+A wallet without the ability to move funds is just a static number. Real payment platforms need merchants to deposit funds, withdraw funds, and track every transaction. This creates an audit trail and prevents fraud.
+
+This stage introduces a basic ledger system. Merchants can now:
+
+-   Top up wallet balance (deposits)
+-   Spend from wallet balance (withdrawals)
+-   View full transaction history
+-   Automatic balance validation to prevent overspending
+
+Every balance change is recorded as a transaction for auditability—this is how real financial systems track money movement.
+
+## Implementation: Deposit, Withdraw, Transactions
+
+The wallet routes now include three new endpoints:
+
+**Deposit funds into wallet:**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 100}'
+```
+
+**Example:**
+![Wallet Deposit](../img/wallet_system/deposit_twice.png)
+
+Success: Wallet balance increases, transaction recorded.
+
+---
+
+**Withdraw funds from wallet:**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/withdraw \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 30}'
+```
+
+**Example:**
+![Wallet Withdrawal](../img/wallet_system/withdraw.png)
+
+Success: Wallet balance decreases, transaction recorded.
+
+---
+
+**View transaction history (ledger):**
+
+```bash
+curl http://localhost:3000/api/wallets/transactions \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+Returns all deposits and withdrawals for the merchant.
+
+---
+
+**Balance validation in action (insufficient funds):**
+
+Try withdrawing more than available balance:
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/withdraw \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 10000}'
+```
+
+**Example:**
+![Insufficient Balance Error](../img/wallet_system/insufficient_balance.png)
+
+Error: Withdrawal blocked. Wallet prevents overspending.
+
+---
+
 ## What This Enables
 
--   Each merchant has isolated funds (no mixing)
--   Wallets track available balance for payments and card issuance
--   Foundation for deposits, withdrawals, and transaction settlement
+-   Merchants can fund their wallets (top-up mechanism)
+-   Merchants can spend from wallets (payment settlement)
+-   Complete audit trail of all transactions
+-   Risk management via balance validation
+-   Foundation for card issuance and payment processing
