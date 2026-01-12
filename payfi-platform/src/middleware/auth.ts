@@ -10,16 +10,16 @@
 
 import { Request, Response, NextFunction } from "express";
 
-// Registry of valid API Keys issued to merchants
+// Store API Key → merchantId mapping
 // In production: replace with database lookup
-const validApiKeys = new Set<string>();
+const apiKeyRegistry = new Map<string, string>();
 
 /**
  * Register a new API Key when a merchant signs up
  * Called by the merchant onboarding endpoint
  */
-export function registerApiKey(key: string) {
-    validApiKeys.add(key);
+export function registerApiKey(key: string, merchantId: string) {
+    apiKeyRegistry.set(key, merchantId);
 }
 
 /**
@@ -29,10 +29,14 @@ export function registerApiKey(key: string) {
  * 1. X-API-Key header exists and is a string
  * 2. API Key exists in the registry (belongs to a registered merchant)
  *
- * If valid: Allow request to proceed (call next())
- * If invalid: Return 401 (Missing) or 403 (Invalid) error
+ * If valid:
+ * - Attach merchant info to req.merchant
+ * - Allow request to proceed
+ *
+ * If invalid:
+ * - Return 401 (Missing) or 403 (Invalid)
  */
-export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
+export function apiKeyAuth(req: any, res: Response, next: NextFunction) {
     const apiKey = req.headers["x-api-key"];
 
     // Check if API Key is provided
@@ -40,11 +44,23 @@ export function apiKeyAuth(req: Request, res: Response, next: NextFunction) {
         return res.status(401).json({ error: "Missing API Key" });
     }
 
-    // Check if API Key belongs to a registered merchant
-    if (!validApiKeys.has(apiKey)) {
+    // Check if API Key is registered
+    const merchantId = apiKeyRegistry.get(apiKey);
+
+    if (!merchantId) {
         return res.status(403).json({ error: "Invalid API Key" });
     }
 
-    // Merchant is authenticated, proceed to next middleware/route handler
+    // Attach merchant identity to request (used by wallets.ts)
+    req.merchant = {
+        id: merchantId,
+        apiKey,
+    };
+
     next();
 }
+
+// Support both import styles:
+// import apiKeyAuth from "..."
+// import { apiKeyAuth } from "..."
+export default apiKeyAuth;

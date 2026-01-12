@@ -35,16 +35,8 @@ const merchants: any[] = [];
 router.post("/merchants", (req, res) => {
     const { name } = req.body;
 
-    // Validation: merchant name is required
-    if (!name) {
-        return res.status(400).json({ error: "Merchant name is required" });
-    }
-
     // Generate secure API Key (48 random hex characters = 192 bits of entropy)
     const apiKey = crypto.randomBytes(24).toString("hex");
-
-    // Register this API Key so authentication middleware can validate it later
-    registerApiKey(apiKey);
 
     // Create merchant record
     const merchant = {
@@ -53,6 +45,14 @@ router.post("/merchants", (req, res) => {
         apiKey,
         createdAt: new Date(),
     };
+
+    // Validation: merchant name is required
+    if (!name) {
+        return res.status(400).json({ error: "Merchant name is required" });
+    }
+
+    // Register this API Key so authentication middleware can validate it later
+    registerApiKey(apiKey, String(merchant.id));
 
     // Store merchant
     merchants.push(merchant);

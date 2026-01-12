@@ -7,12 +7,14 @@
  * - /health: Public endpoint (no auth required) - service health check
  * - /api/protected: Protected endpoint (auth required) - demo authentication works
  * - /api/merchants: Merchant registration (no auth required) - entry point for new merchants
- * - /api/*: All other merchant endpoints (auth required) - future wallet, card, payment APIs
+ * - /api/wallets: Wallet management (auth required) - merchant balance and fund storage
+ * - /api/*: All other merchant endpoints (auth required) - future card, payment, webhook APIs
  */
 
 import express from "express";
 import merchantRoutes from "./routes/merchants";
-import { apiKeyAuth } from "./middleware/auth";
+import walletRoutes from "./routes/wallets";
+import apiKeyAuth from "./middleware/auth";
 
 const app = express();
 
@@ -46,6 +48,18 @@ app.get("/api/protected", apiKeyAuth, (req, res) => {
  * POST /api/merchants: Create new merchant account
  */
 app.use("/api", merchantRoutes);
+
+/**
+ * Register Wallet Routes
+ *
+ * These endpoints provide wallet infrastructure for merchants.
+ * All wallet APIs require API key authentication.
+ *
+ * Examples:
+ * - POST /api/wallets → Create wallet
+ * - GET  /api/wallets → List wallets
+ */
+app.use("/api", walletRoutes);
 
 // Start server
 const PORT = 3000;

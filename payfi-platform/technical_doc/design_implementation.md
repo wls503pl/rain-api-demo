@@ -82,3 +82,56 @@ Replace `YOUR_API_KEY_HERE` with the actual API Key you received from the mercha
 -   Merchants can only access resources they own
 -   All future features (wallets, cards, payments) can assume requests are from authenticated merchants
 -   The platform has a security foundation for all protected endpoints
+
+---
+
+# Phase 2: Wallet System
+
+## Why Wallet Management?
+
+Once merchants are authenticated, the platform needs a place to store their funds. A wallet is a merchant's account balance on the platform—it tracks how much money they have available.
+
+Without wallets:
+
+-   All merchants' funds would mix together (no separation)
+-   You couldn't validate if a merchant has enough balance before processing payments
+-   There's no audit trail of who owns what
+
+Wallets are the foundation for all financial operations: deposits, withdrawals, card issuance, and payments.
+
+## Implementation: Create Merchant Wallet
+
+Create file:
+
+```
+mkdir src/routes
+touch src/routes/wallets.ts
+```
+
+This file handles wallet operations. When a merchant is created, they automatically get a wallet. The wallet stores their USDC balance (simulated stablecoin).
+
+Key changes to existing code:
+
+-   `auth.ts`: API Key registry now tracks `API Key → Merchant ID` mapping, so wallets know who owns them
+-   `merchants.ts`: When registering API Key, we now pass the merchant ID for ownership tracking
+-   `server.ts`: Import and register the new wallet routes
+
+**Create merchant and view wallet:**
+
+When a merchant signs up, they automatically receive a wallet with 0 USDC balance. View it using their API Key:
+
+```bash
+curl -X GET http://localhost:3000/api/wallets \
+  -H "X-API-Key: YOUR_API_KEY_HERE"
+```
+
+**Example:**
+![Merchant Wallet Creation and Verification](../img/wallet_system/merchant_wallet_verify.png)
+
+---
+
+## What This Enables
+
+-   Each merchant has isolated funds (no mixing)
+-   Wallets track available balance for payments and card issuance
+-   Foundation for deposits, withdrawals, and transaction settlement
