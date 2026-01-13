@@ -157,10 +157,6 @@ curl http://localhost:3000/api/wallets/transactions \
 - **Authentication:** API Key-based with registry lookup
 - **Architecture:** Modular, service-oriented design
 
-## What You Can Say in Interviews
-
-> "I built PayFi, a production-grade B2B payment infrastructure API that simulates merchant integration, wallet management, fund flow controls, and transaction auditability. The platform demonstrates core patterns used by modern fintech companies: authentication layers, merchant isolation, balance validation, and ledger systems. This directly maps to fintech infrastructure roles at companies like Rain, where these capabilities are fundamental to serving merchants at scale."
-
 ## Project Status
 
 - ✅ Phase 1: Foundation (Server setup, health checks)
@@ -171,38 +167,18 @@ curl http://localhost:3000/api/wallets/transactions \
 - 🔄 Phase 6: Webhooks (In design)
 - 🔄 Phase 7: Polish (In design)
 
-## Future Roadmap
-
-1. **Card Issuing** — Virtual card provisioning and spending
-2. **Payment Processing** — Direct P2P and merchant-to-customer payments
-3. **Webhook Events** — Event-driven architecture for real-time updates
-4. **Rate Limiting** — Protect against abuse and DDoS
-5. **SDK Support** — Official SDKs for JavaScript, Python, Go
-6. **Multi-Currency** — Support multiple stablecoins (USDC, USDT, etc.)
-7. **KYC Integration** — Automated merchant verification
-8. **Analytics Dashboard** — Merchant insights and reporting
-
 ## Why Build This?
 
-Understanding fintech infrastructure from first principles is essential for anyone working in payments, DeFi, or blockchain infrastructure roles. By building PayFi, you learn:
+Built as a learning project to understand payment infrastructure architecture and fintech fundamentals.
+Understanding fintech infrastructure from first principles is essential for anyone working in payments, DeFi, or blockchain infrastructure roles.
+By building PayFi, I will learn:
 
 - How merchants interact with payment platforms
 - Why API authentication and merchant isolation matter
 - The importance of balance validation and risk controls
 - How transaction ledgers enable auditability
-- The patterns that scale to millions of merchants
-
-This hands-on experience directly prepares you for roles at Rain, Stripe, Circle, and other fintech infrastructure companies.
 
 ## Repository
 
 - **GitHub:** [github.com/wls503pl/rain-api-demo](https://github.com/wls503pl/rain-api-demo)
 - **Documentation:** See `/technical_doc` folder for detailed architecture and implementation guides
-
-## Author
-
-Built as a learning project to understand Rain's payment infrastructure architecture and fintech fundamentals.
-
----
-
-**Ready to scale payment infrastructure? Start here with PayFi.**
