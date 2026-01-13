@@ -12,13 +12,13 @@ import { Request, Response, NextFunction } from "express";
 
 // Store API Key → merchantId mapping
 // In production: replace with database lookup
-const apiKeyRegistry = new Map<string, string>();
+const apiKeyRegistry = new Map<string, number>();
 
 /**
  * Register a new API Key when a merchant signs up
  * Called by the merchant onboarding endpoint
  */
-export function registerApiKey(key: string, merchantId: string) {
+export function registerApiKey(key: string, merchantId: number) {
     apiKeyRegistry.set(key, merchantId);
 }
 

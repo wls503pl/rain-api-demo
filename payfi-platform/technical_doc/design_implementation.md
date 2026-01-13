@@ -138,14 +138,15 @@ This stage introduces a basic ledger system. Merchants can now:
 
 -   Top up wallet balance (deposits)
 -   Spend from wallet balance (withdrawals)
+-   Transfer funds to other merchants
 -   View full transaction history
 -   Automatic balance validation to prevent overspending
 
 Every balance change is recorded as a transaction for auditability—this is how real financial systems track money movement.
 
-## Implementation: Deposit, Withdraw, Transactions
+## Implementation: Deposit, Withdraw, Transfer, Transactions
 
-The wallet routes now include three new endpoints:
+The wallet routes now include four new endpoints:
 
 **Deposit funds into wallet:**
 
@@ -179,6 +180,22 @@ Success: Wallet balance decreases, transaction recorded.
 
 ---
 
+**Transfer funds to another merchant:**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/transfer \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -d '{"toMerchantId": 2, "amount": 30}'
+```
+
+**Example:**
+![Wallet Transfer](../img/wallet_system/wallet_transfer.png)
+
+Success: Merchant 1 transfers 30 to Merchant 2. Merchant 1 wallet drops from 100 to 70, Merchant 2 wallet increases to 30. Both transactions recorded in ledger.
+
+---
+
 **View transaction history (ledger):**
 
 ```bash
@@ -186,25 +203,22 @@ curl http://localhost:3000/api/wallets/transactions \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
-Returns all deposits and withdrawals for the merchant.
+Returns all deposits, withdrawals, and transfers for the merchant.
 
 ---
 
 **Balance validation in action (insufficient funds):**
 
-Try withdrawing more than available balance:
+Try transferring more than available balance:
 
 ```bash
-curl -X POST http://localhost:3000/api/wallets/withdraw \
+curl -X POST http://localhost:3000/api/wallets/transfer \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"amount": 10000}'
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -d '{"toMerchantId": 2, "amount": 300}'
 ```
 
-**Example:**
-![Insufficient Balance Error](../img/wallet_system/insufficient_balance.png)
-
-Error: Withdrawal blocked. Wallet prevents overspending.
+Error: Transfer blocked. Merchant 1 only has 70 remaining, cannot transfer 300.
 
 ---
 
@@ -212,6 +226,7 @@ Error: Withdrawal blocked. Wallet prevents overspending.
 
 -   Merchants can fund their wallets (top-up mechanism)
 -   Merchants can spend from wallets (payment settlement)
+-   Merchants can transfer funds to other merchants
 -   Complete audit trail of all transactions
 -   Risk management via balance validation
 -   Foundation for card issuance and payment processing

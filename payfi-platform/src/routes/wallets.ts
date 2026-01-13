@@ -164,4 +164,71 @@ router.get("/wallets/transactions", apiKeyAuth, (req: any, res) => {
     });
 });
 
+/**
+ * POST /api/wallets/transfer
+ *
+ * Transfer funds to another merchant
+ *
+ * Input: { toMerchantId: number, amount: number }
+ */
+router.post("/wallets/transfer", apiKeyAuth, (req: any, res) => {
+    const sender = req.merchant;
+    const { toMerchantId, amount } = req.body;
+
+    if (!toMerchantId || !amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid input" });
+    }
+
+    const senderWallet = wallets.find((w) => w.merchantId === sender.id);
+    const receiverWallet = wallets.find(
+        (w) => w.merchantId === Number(toMerchantId)
+    );
+
+    if (!senderWallet) {
+        return res.status(404).json({ error: "Sender wallet not found" });
+    }
+
+    if (!receiverWallet) {
+        return res.status(404).json({ error: "Receiver wallet not found" });
+    }
+
+    if (senderWallet.balance < amount) {
+        return res.status(400).json({ error: "Insufficient balance" });
+    }
+
+    // Update balances
+    senderWallet.balance -= amount;
+    receiverWallet.balance += amount;
+
+    // Record transactions
+    const txOut = {
+        id: transactions.length + 1,
+        merchantId: sender.id,
+        walletId: senderWallet.id,
+        type: "transfer_out",
+        amount,
+        balanceAfter: senderWallet.balance,
+        createdAt: new Date(),
+    };
+
+    const txIn = {
+        id: transactions.length + 2,
+        merchantId: receiverWallet.merchantId,
+        walletId: receiverWallet.id,
+        type: "transfer_in",
+        amount,
+        balanceAfter: receiverWallet.balance,
+        createdAt: new Date(),
+    };
+
+    transactions.push(txOut, txIn);
+
+    res.json({
+        message: "Transfer successful",
+        from: senderWallet,
+        to: receiverWallet,
+        transactions: [txOut, txIn],
+    });
+});
+
 export default router;
