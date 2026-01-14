@@ -18,10 +18,10 @@ import { apiKeyAuth } from "../middleware/auth";
 const router = Router();
 
 // In-memory wallet storage (will migrate to database later)
-const wallets: any[] = [];
+export const wallets: any[] = [];
 
 // In-memory ledger (transaction history)
-const transactions: any[] = [];
+export const transactions: any[] = [];
 
 /**
  * POST /api/wallets

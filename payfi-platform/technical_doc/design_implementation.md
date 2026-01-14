@@ -230,3 +230,145 @@ Error: Transfer blocked. Merchant 1 only has 70 remaining, cannot transfer 300.
 -   Complete audit trail of all transactions
 -   Risk management via balance validation
 -   Foundation for card issuance and payment processing
+
+---
+
+# Phase 3: Card Issuing
+
+## Why Virtual Cards?
+
+A wallet alone stores funds but doesn't provide a mechanism for merchants to spend. Virtual cards represent a practical way for merchants to use their wallet balance in real-world transactions. Each card is tied to a merchant's wallet and can spend against that balance.
+
+Without card issuing:
+
+-   Merchants can't spend their wallet funds
+-   No way to track individual card transactions
+-   No spending controls or balance enforcement at the card level
+
+## Implementation: Card Creation and Management
+
+Create file:
+
+```
+touch src/routes/cards.ts
+```
+
+This file handles card operations. When a merchant creates a card, the system generates a virtual card linked to their wallet. The card can spend against the merchant's available balance.
+
+Update `src/server.ts` to import and register card routes.
+
+**Create a virtual card:**
+
+```bash
+curl -X POST http://localhost:3000/api/cards \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Example:**
+![Card Creation](../img/cards_issuing/card_issue_view.png)
+
+Success: Card is created and linked to the merchant's wallet. You receive a card ID and card number.
+
+---
+
+**View all cards for a merchant:**
+
+```bash
+curl http://localhost:3000/api/cards \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+Returns all active cards belonging to the authenticated merchant.
+
+---
+
+## Why Card Spending?
+
+A card without spending capability is useless. The spending endpoint simulates real-world card transactions by deducting funds from the merchant's wallet. Each spend is recorded in the transaction ledger to maintain a complete audit trail.
+
+## Implementation: Card Spending Against Wallet Balance
+
+The card spending endpoint deducts funds from the merchant's wallet and validates that sufficient balance exists before processing the transaction.
+
+**Simulate card spending:**
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 20}'
+```
+
+**Example:**
+![Card Spend Success](../img/cards_issuing/card_spend.png)
+
+Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
+
+---
+
+**Example Scenario:**
+
+Assume you've already:
+
+1. Created a merchant (with API Key)
+2. Deposited 100 USDC to the wallet
+3. Created a virtual card
+
+Now spend 20:
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 20}'
+```
+
+Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
+
+---
+
+**Check wallet transactions:**
+
+```bash
+curl http://localhost:3000/api/wallets/transactions \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Example:**
+![Card Transactions](../img/cards_issuing/card_transactions.png)
+
+You see two transactions:
+
+1. Deposit: +100 USDC
+2. Card Spend: -20 USDC
+3. Remaining balance: 80 USDC
+
+---
+
+**Insufficient funds prevention:**
+
+Try spending more than available balance:
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{"amount": 200}'
+```
+
+**Example:**
+![Insufficient Balance Error](../img/cards_issuing/card_insufficient_balance.png)
+
+Error: Transaction rejected. Merchant only has 80 USDC available, cannot spend 200.
+
+The transaction count remains unchanged—the failed transaction is not recorded.
+
+---
+
+## What This Enables
+
+-   Merchants can issue virtual cards tied to their wallets
+-   Real-time balance deductions when cards are used
+-   Complete transaction audit trail for card spending
+-   Automatic fraud prevention via balance validation
+-   Foundation for advanced features like spending limits and transaction webhooks

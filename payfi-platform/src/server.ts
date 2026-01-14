@@ -12,9 +12,10 @@
  */
 
 import express from "express";
+import apiKeyAuth from "./middleware/auth";
 import merchantRoutes from "./routes/merchants";
 import walletRoutes from "./routes/wallets";
-import apiKeyAuth from "./middleware/auth";
+import cardRoutes from "./routes/cards";
 
 const app = express();
 
@@ -60,6 +61,19 @@ app.use("/api", merchantRoutes);
  * - GET  /api/wallets → List wallets
  */
 app.use("/api", walletRoutes);
+
+/**
+ * Register Card Routes
+ *
+ * These endpoints provide virtual card management for merchants.
+ * All card APIs require API key authentication.
+ *
+ * Examples:
+ * - POST /api/cards → Create card
+ * - GET  /api/cards → List cards
+ * - POST /api/cards/:id/transfer → Transfer funds
+ */
+app.use("/api", cardRoutes);
 
 // Start server
 const PORT = 3000;
