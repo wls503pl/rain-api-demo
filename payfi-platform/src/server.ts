@@ -10,6 +10,8 @@
  * - /api/wallets: Wallet management (auth required) - merchant balance and fund storage
  * - /api/*: All other merchant endpoints (auth required) - future card, payment, webhook APIs
  */
+import dotenv from "dotenv";
+dotenv.config();
 
 import express from "express";
 import apiKeyAuth from "./middleware/auth";

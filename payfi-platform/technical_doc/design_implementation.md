@@ -6,7 +6,7 @@ This is a personal learning project to understand Rain's payment infrastructure 
 
 ---
 
-# Phase 1: Merchant Integration
+# Phase 1: Merchant Integration (Merchant Onboarding)
 
 ## Why Create Merchants?
 
@@ -69,9 +69,8 @@ curl -X GET http://localhost:3000/api/protected \
 Replace `YOUR_API_KEY_HERE` with the actual API Key you received from the merchant registration response.
 
 **Example:**
-![API Key Authentication Test](../img/merchant_integration/access_protected_endpoint.png)
 
-**Success:** You see the message "You have access to protected resource"
+Success: You see the message "You have access to protected resource"
 
 **Failure (without API Key or with invalid key):** You get a 401 or 403 error.
 
@@ -126,7 +125,10 @@ curl -X GET http://localhost:3000/api/wallets \
 ```
 
 **Example:**
+
 ![Merchant Wallet Creation and Verification](../img/wallet_system/merchant_wallet_verify.png)
+
+Success: You see wallet ID, merchant ID, currency (USDC), and balance (0).
 
 ---
 
@@ -158,6 +160,7 @@ curl -X POST http://localhost:3000/api/wallets/deposit \
 ```
 
 **Example:**
+
 ![Wallet Deposit](../img/wallet_system/deposit_twice.png)
 
 Success: Wallet balance increases, transaction recorded.
@@ -174,6 +177,7 @@ curl -X POST http://localhost:3000/api/wallets/withdraw \
 ```
 
 **Example:**
+
 ![Wallet Withdrawal](../img/wallet_system/withdraw.png)
 
 Success: Wallet balance decreases, transaction recorded.
@@ -190,6 +194,7 @@ curl -X POST http://localhost:3000/api/wallets/transfer \
 ```
 
 **Example:**
+
 ![Wallet Transfer](../img/wallet_system/wallet_transfer.png)
 
 Success: Merchant 1 transfers 30 to Merchant 2. Merchant 1 wallet drops from 100 to 70, Merchant 2 wallet increases to 30. Both transactions recorded in ledger.
@@ -265,6 +270,7 @@ curl -X POST http://localhost:3000/api/cards \
 ```
 
 **Example:**
+
 ![Card Creation](../img/cards_issuing/card_issue_view.png)
 
 Success: Card is created and linked to the merchant's wallet. You receive a card ID and card number.
@@ -300,6 +306,7 @@ curl -X POST http://localhost:3000/api/cards/spend \
 ```
 
 **Example:**
+
 ![Card Spend Success](../img/cards_issuing/card_spend.png)
 
 Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
@@ -335,6 +342,7 @@ curl http://localhost:3000/api/wallets/transactions \
 ```
 
 **Example:**
+
 ![Card Transactions](../img/cards_issuing/card_transactions.png)
 
 You see two transactions:
@@ -357,6 +365,7 @@ curl -X POST http://localhost:3000/api/cards/spend \
 ```
 
 **Example:**
+
 ![Insufficient Balance Error](../img/cards_issuing/card_insufficient_balance.png)
 
 Error: Transaction rejected. Merchant only has 80 USDC available, cannot spend 200.
@@ -372,3 +381,61 @@ The transaction count remains unchanged—the failed transaction is not recorded
 -   Complete transaction audit trail for card spending
 -   Automatic fraud prevention via balance validation
 -   Foundation for advanced features like spending limits and transaction webhooks
+
+---
+
+# Database Persistence
+
+## Migration from In-Memory to PostgreSQL
+
+Previously, all merchant data was stored in memory using JavaScript Maps and objects:
+
+-   `apiKeyRegistry`: In-memory `Map<string, number>` storing API Key → Merchant ID mappings
+-   `merchantDb`: In-memory object storing merchant records
+-   `walletDb`: In-memory object storing wallet balances
+-   `cardDb`: In-memory object storing card records
+-   `transactionLedger`: In-memory array storing all transactions
+
+This approach was sufficient for learning but lacked persistence. When the server restarted, all data was lost.
+
+## Implementation: PostgreSQL Storage
+
+We've migrated to PostgreSQL to provide persistent, reliable storage for all platform data. Key changes:
+
+-   **api_keys table**: Stores API Key hashes linked to merchants via foreign key
+-   **merchants table**: Persistent merchant registration data
+-   **wallets table**: Merchant balance storage with atomic updates
+-   **transactions table**: Complete audit trail of all balance movements and card spending
+-   **cards table**: Virtual card records linked to merchant wallets
+
+The authentication middleware (`auth.ts`) now validates API Keys by querying the PostgreSQL `api_keys` table instead of checking an in-memory Map.
+
+All wallet operations (deposit, withdraw, transfer, card spend) now:
+
+1. Read current balance from the `wallets` table
+2. Validate sufficient funds
+3. Execute atomic database transactions to update balance and record the movement in the `transactions` table
+
+---
+
+## Core Tables Overview
+
+| Table            | Purpose                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| **merchants**    | Registered businesses with name, email, created timestamp                                              |
+| **api_keys**     | Authentication credentials linking API keys to merchants                                               |
+| **wallets**      | Merchant balance ledgers storing currency and balance (NUMERIC type for precision)                     |
+| **transactions** | Complete audit trail: type (deposit/withdraw/transfer/card_spend), amount, sender, receiver, timestamp |
+| **cards**        | Virtual cards linking to merchant wallets with card numbers and status                                 |
+
+For detailed setup instructions, database installation, schema DDL, and PostgreSQL connection configuration, see **[PostgreSQL_Setup](./PostgreSQL_setup_guide.md)**
+
+---
+
+## What This Enables
+
+-   **Data Persistence**: All merchant data survives server restarts
+-   **Audit Trail**: Complete PostgreSQL transaction history for compliance and debugging
+-   **Scalability**: Database queries are more efficient than in-memory lookups at scale
+-   **Reliability**: PostgreSQL's ACID compliance ensures financial data consistency
+-   **Multi-Instance**: Multiple server instances can share the same database for horizontal scaling

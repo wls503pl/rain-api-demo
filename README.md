@@ -62,42 +62,42 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 ## Architecture
 
 ```
-┌──────────────────────────────────┐
-│   Merchants                      │
-└──────────────┬───────────────────┘
+┌──────────────────────────────────────┐
+│   Merchants                          │
+└──────────────────┬───────────────────┘
              │ (API Key Auth)
              ▼
-┌──────────────────────────────────────────────────┐
-│   PayFi API Gateway                              │
-│  ├─ /merchants                                   │
-│  ├─ /wallets                                     │
-│  ├─ /wallets/deposit                             │
-│  ├─ /wallets/withdraw                            │
-│  ├─ /wallets/transfer                            │
-│  ├─ /wallets/transactions                        │
-│  ├─ /cards                                       │
-│  ├─ /cards/spend                                 │
-│  └─ (Future: /payments, /webhooks)               │
-└──────────────┬─────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│   PayFi API Gateway                                      │
+│  ├─ /merchants                                           │
+│  ├─ /wallets                                             │
+│  ├─ /wallets/deposit                                     │
+│  ├─ /wallets/withdraw                                    │
+│  ├─ /wallets/transfer                                    │
+│  ├─ /wallets/transactions                                │
+│  ├─ /cards                                               │
+│  ├─ /cards/spend                                         │
+│  └─ (Future: /payments, /webhooks)                       │
+└──────────────────┬──────────────────────────────────────┘
              │
              ▼
-┌──────────────────────────────────────────────────┐
-│   Core Services                                  │
-│  ├─ Authentication Layer                         │
-│  ├─ Ledger System                                │
-│  ├─ Balance Management                           │
-│  └─ Transaction History                          │
-└──────────────┬─────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│   Core Services                                          │
+│  ├─ Authentication Layer                                 │
+│  ├─ Ledger System                                        │
+│  ├─ Balance Management                                   │
+│  └─ Transaction History                                  │
+└──────────────────┬──────────────────────────────────────┘
              │
              ▼
-┌──────────────────────────────────────────────────┐
-│   Data Storage                                   │
-│  ├─ Merchant Accounts                            │
-│  ├─ Wallets                                      │
-│  ├─ Cards                                        │
-│  ├─ Transactions                                 │
-│  └─ API Keys                                     │
-└──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│   PostgreSQL Database                                    │
+│  ├─ merchants table                                      │
+│  ├─ api_keys table                                       │
+│  ├─ wallets table                                        │
+│  ├─ cards table                                          │
+│  └─ transactions table                                   │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## Key Capabilities
@@ -122,11 +122,21 @@ Merchants can create and manage virtual cards tied directly to their wallets. Ca
 
 Every transaction is recorded with timestamp, amount, type, and resulting balance. This creates a complete paper trail for compliance and reconciliation.
 
+### Data Persistence
+
+All data (merchants, API keys, wallets, cards, transactions) is persisted in PostgreSQL. The system survives restarts and supports horizontal scaling across multiple instances.
+
 ### Scalability
 
 The architecture is designed to support thousands of merchants without cross-contamination or performance degradation.
 
 ## Quick Start
+
+### Prerequisites
+
+-   Node.js 16+
+-   PostgreSQL 12+
+-   Environment variables configured
 
 ### 1. Register Merchants
 
@@ -187,8 +197,8 @@ curl http://localhost:3000/api/wallets/transactions \
 
 -   **Runtime:** Node.js with TypeScript
 -   **Framework:** Express.js for REST API
--   **Database:** In-memory (migration to PostgreSQL planned)
--   **Authentication:** API Key-based with registry lookup
+-   **Database:** PostgreSQL 12+ for persistent storage
+-   **Authentication:** API Key-based with database validation
 -   **Architecture:** Modular, service-oriented design
 
 ## Project Status
@@ -196,14 +206,11 @@ curl http://localhost:3000/api/wallets/transactions \
 -   ✅ Phase 1: Merchant Integration (Registration, API key auth)
 -   ✅ Phase 2: Wallet System (Balance tracking, deposits, withdrawals, transfers, ledger)
 -   ✅ Phase 3: Card Issuing (Virtual cards, card spending, balance validation)
--   🔄 Phase 4: Payments (In design)
--   🔄 Phase 5: Webhooks (In design)
--   🔄 Phase 6: Polish (In design)
+-   📄 Phase 4: Payments (In design)
+-   📄 Phase 5: Webhooks (In design)
+-   📄 Phase 6: Polish (In design)
 
 ## Documentation
 
-For detailed implementation guides and architecture patterns, see `design_implementation.md`.
-
-## Repository
-
--   **GitHub:** [github.com/wls503pl/rain-api-demo](https://github.com/wls503pl/rain-api-demo)
+-   **Technical Implementation:** See **[Design_Implemention](./payfi-platform/technical_doc/design_implementation.md)** for detailed architecture patterns and step-by-step guides
+-   **Database Setup:** See **[PostgreSQL_Setup](./payfi-platform/technical_doc/PostgreSQL_setup_guide.md)** for PostgreSQL installation, schema definitions, and troubleshooting
