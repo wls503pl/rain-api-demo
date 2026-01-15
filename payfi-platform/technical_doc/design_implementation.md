@@ -400,7 +400,7 @@ This approach was sufficient for learning but lacked persistence. When the serve
 
 ## Implementation: PostgreSQL Storage
 
-We've migrated to PostgreSQL to provide persistent, reliable storage for all platform data. Key changes:
+We've migrated to PostgreSQL to provide persistent, reliable storage for all platform data. The routes have been refactored to replace in-memory storage with database queries. Key changes:
 
 -   **api_keys table**: Stores API Key hashes linked to merchants via foreign key
 -   **merchants table**: Persistent merchant registration data
@@ -415,6 +415,45 @@ All wallet operations (deposit, withdraw, transfer, card spend) now:
 1. Read current balance from the `wallets` table
 2. Validate sufficient funds
 3. Execute atomic database transactions to update balance and record the movement in the `transactions` table
+
+### End-to-End Flow: From API Request to Database Verification
+
+**Step 1: Execute complete API operation chain**
+
+![API Operations Flow](../img/services_inDB/service_chain.png)
+
+This demonstrates a full workflow executing multiple operations in sequence:
+
+-   Create merchant and receive API Key
+-   Create wallet for the merchant
+-   Deposit 100 USDC to wallet
+-   Create virtual card
+-   Spend 20 USDC via card
+
+All operations return success responses with updated balances and transaction details.
+
+---
+
+**Step 2: Query PostgreSQL to verify data persistence**
+
+![Database Query Results](../img/services_inDB/service_data_import.png)
+
+Running SQL queries against the persistent database reveals:
+
+**merchants table**: One Test Merchant created at 2026-01-16 07:25:10 (1 row)
+
+**wallets table**: Wallet ID 1 for merchant 1 with balance 80.000000 (result of 100 deposited - 20 spent via card)
+
+**cards table**: Card 4242-4242-4242-8060 issued to merchant 1 with active status (1 row)
+
+**transactions table**:
+
+-   Row 1: Deposit transaction, +100 USDC, balance after 100
+-   Row 2: Card spend transaction, -20 USDC, balance after 80
+
+(2 rows total)
+
+All data is atomically persisted with timestamps and complete audit trail. This demonstrates how the refactored routes successfully replaced in-memory operations with reliable database persistence.
 
 ---
 
