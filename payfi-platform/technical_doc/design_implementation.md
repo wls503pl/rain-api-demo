@@ -54,8 +54,8 @@ touch src/middleware/auth.ts
 
 This file contains two functions:
 
--   `registerApiKey()`: Stores a newly generated API Key when a merchant signs up
--   `apiKeyAuth()`: Middleware that checks if incoming requests have a valid API Key
+- `registerApiKey()`: Stores a newly generated API Key when a merchant signs up
+- `apiKeyAuth()`: Middleware that checks if incoming requests have a valid API Key
 
 Update `src/server.ts` to import the authentication middleware and create a protected test endpoint.
 
@@ -78,9 +78,9 @@ Success: You see the message "You have access to protected resource"
 
 ## What This Enables
 
--   Merchants can only access resources they own
--   All future features (wallets, cards, payments) can assume requests are from authenticated merchants
--   The platform has a security foundation for all protected endpoints
+- Merchants can only access resources they own
+- All future features (wallets, cards, payments) can assume requests are from authenticated merchants
+- The platform has a security foundation for all protected endpoints
 
 ---
 
@@ -92,9 +92,9 @@ Once merchants are authenticated, the platform needs a place to store their fund
 
 Without wallets:
 
--   All merchants' funds would mix together (no separation)
--   You couldn't validate if a merchant has enough balance before processing payments
--   There's no audit trail of who owns what
+- All merchants' funds would mix together (no separation)
+- You couldn't validate if a merchant has enough balance before processing payments
+- There's no audit trail of who owns what
 
 Wallets are the foundation for all financial operations: deposits, withdrawals, card issuance, and payments.
 
@@ -111,9 +111,9 @@ This file handles wallet operations. When a merchant is created, they automatica
 
 Key changes to existing code:
 
--   `auth.ts`: API Key registry now tracks `API Key → Merchant ID` mapping, so wallets know who owns them
--   `merchants.ts`: When registering API Key, we now pass the merchant ID for ownership tracking
--   `server.ts`: Import and register the new wallet routes
+- `auth.ts`: API Key registry now tracks `API Key → Merchant ID` mapping, so wallets know who owns them
+- `merchants.ts`: When registering API Key, we now pass the merchant ID for ownership tracking
+- `server.ts`: Import and register the new wallet routes
 
 **Create merchant and view wallet:**
 
@@ -126,8 +126,6 @@ curl -X GET http://localhost:3000/api/wallets \
 
 **Example:**
 
-![Merchant Wallet Creation and Verification](../img/wallet_system/merchant_wallet_verify.png)
-
 Success: You see wallet ID, merchant ID, currency (USDC), and balance (0).
 
 ---
@@ -138,11 +136,11 @@ A wallet without the ability to move funds is just a static number. Real payment
 
 This stage introduces a basic ledger system. Merchants can now:
 
--   Top up wallet balance (deposits)
--   Spend from wallet balance (withdrawals)
--   Transfer funds to other merchants
--   View full transaction history
--   Automatic balance validation to prevent overspending
+- Top up wallet balance (deposits)
+- Spend from wallet balance (withdrawals)
+- Transfer funds to other merchants
+- View full transaction history
+- Automatic balance validation to prevent overspending
 
 Every balance change is recorded as a transaction for auditability—this is how real financial systems track money movement.
 
@@ -161,8 +159,6 @@ curl -X POST http://localhost:3000/api/wallets/deposit \
 
 **Example:**
 
-![Wallet Deposit](../img/wallet_system/deposit_twice.png)
-
 Success: Wallet balance increases, transaction recorded.
 
 ---
@@ -178,63 +174,17 @@ curl -X POST http://localhost:3000/api/wallets/withdraw \
 
 **Example:**
 
-![Wallet Withdrawal](../img/wallet_system/withdraw.png)
-
 Success: Wallet balance decreases, transaction recorded.
-
----
-
-**Transfer funds to another merchant:**
-
-```bash
-curl -X POST http://localhost:3000/api/wallets/transfer \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: MERCHANT_1_API_KEY" \
-  -d '{"toMerchantId": 2, "amount": 30}'
-```
-
-**Example:**
-
-![Wallet Transfer](../img/wallet_system/wallet_transfer.png)
-
-Success: Merchant 1 transfers 30 to Merchant 2. Merchant 1 wallet drops from 100 to 70, Merchant 2 wallet increases to 30. Both transactions recorded in ledger.
-
----
-
-**View transaction history (ledger):**
-
-```bash
-curl http://localhost:3000/api/wallets/transactions \
-  -H "X-API-Key: YOUR_API_KEY"
-```
-
-Returns all deposits, withdrawals, and transfers for the merchant.
-
----
-
-**Balance validation in action (insufficient funds):**
-
-Try transferring more than available balance:
-
-```bash
-curl -X POST http://localhost:3000/api/wallets/transfer \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: MERCHANT_1_API_KEY" \
-  -d '{"toMerchantId": 2, "amount": 300}'
-```
-
-Error: Transfer blocked. Merchant 1 only has 70 remaining, cannot transfer 300.
 
 ---
 
 ## What This Enables
 
--   Merchants can fund their wallets (top-up mechanism)
--   Merchants can spend from wallets (payment settlement)
--   Merchants can transfer funds to other merchants
--   Complete audit trail of all transactions
--   Risk management via balance validation
--   Foundation for card issuance and payment processing
+- Merchants can fund their wallets (top-up mechanism)
+- Merchants can spend from wallets (payment settlement)
+- Complete audit trail of all transactions
+- Risk management via balance validation
+- Foundation for card issuance and payment processing
 
 ---
 
@@ -246,9 +196,9 @@ A wallet alone stores funds but doesn't provide a mechanism for merchants to spe
 
 Without card issuing:
 
--   Merchants can't spend their wallet funds
--   No way to track individual card transactions
--   No spending controls or balance enforcement at the card level
+- Merchants can't spend their wallet funds
+- No way to track individual card transactions
+- No spending controls or balance enforcement at the card level
 
 ## Implementation: Card Creation and Management
 
@@ -270,8 +220,6 @@ curl -X POST http://localhost:3000/api/cards \
 ```
 
 **Example:**
-
-![Card Creation](../img/cards_issuing/card_issue_view.png)
 
 Success: Card is created and linked to the merchant's wallet. You receive a card ID and card number.
 
@@ -305,30 +253,9 @@ curl -X POST http://localhost:3000/api/cards/spend \
   -d '{"amount": 20}'
 ```
 
-**Example:**
-
-![Card Spend Success](../img/cards_issuing/card_spend.png)
-
-Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
-
----
-
 **Example Scenario:**
 
-Assume you've already:
-
-1. Created a merchant (with API Key)
-2. Deposited 100 USDC to the wallet
-3. Created a virtual card
-
-Now spend 20:
-
-```bash
-curl -X POST http://localhost:3000/api/cards/spend \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"amount": 20}'
-```
+Assume you've already created a merchant, deposited 100 USDC, and created a virtual card. Now spend 20:
 
 Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
 
@@ -336,20 +263,18 @@ Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
 
 **Check wallet transactions:**
 
-```bash
-curl http://localhost:3000/api/wallets/transactions \
-  -H "X-API-Key: YOUR_API_KEY"
+Query database to verify all card operations:
+
+```sql
+SELECT type, amount, balance_after FROM transactions WHERE merchant_id = 2 ORDER BY created_at ASC;
 ```
 
-**Example:**
+**Example Output:**
 
-![Card Transactions](../img/cards_issuing/card_transactions.png)
-
-You see two transactions:
-
-1. Deposit: +100 USDC
-2. Card Spend: -20 USDC
-3. Remaining balance: 80 USDC
+| type       | amount | balance_after |
+| ---------- | ------ | ------------- |
+| deposit    | 50     | 50            |
+| card_spend | 20     | 30            |
 
 ---
 
@@ -364,23 +289,277 @@ curl -X POST http://localhost:3000/api/cards/spend \
   -d '{"amount": 200}'
 ```
 
-**Example:**
+Error: Transaction rejected. Merchant only has available balance, cannot spend 200.
 
-![Insufficient Balance Error](../img/cards_issuing/card_insufficient_balance.png)
-
-Error: Transaction rejected. Merchant only has 80 USDC available, cannot spend 200.
-
-The transaction count remains unchanged—the failed transaction is not recorded.
+The transaction is not recorded—the failed transaction is not persisted.
 
 ---
 
 ## What This Enables
 
--   Merchants can issue virtual cards tied to their wallets
--   Real-time balance deductions when cards are used
--   Complete transaction audit trail for card spending
--   Automatic fraud prevention via balance validation
--   Foundation for advanced features like spending limits and transaction webhooks
+- Merchants can issue virtual cards tied to their wallets
+- Real-time balance deductions when cards are used
+- Complete transaction audit trail for card spending
+- Automatic fraud prevention via balance validation
+- Foundation for advanced features like spending limits and transaction webhooks
+
+---
+
+# Phase 4: KYC Compliance & Risk Engine
+
+## Why KYC Controls?
+
+A fintech platform without compliance controls is a money laundering risk. KYC (Know Your Customer) verification determines transaction limits—merchants with higher verification levels can transact larger amounts.
+
+Without KYC controls:
+
+- Unverified merchants could move unlimited funds
+- Risk of facilitating illegal transactions
+- No regulatory compliance
+- Platform exposure to financial crimes
+
+KYC enforcement is implemented in the risk engine, which evaluates every transaction against the merchant's verification level.
+
+## Implementation: KYC Levels & Limits
+
+Create compliance files:
+
+```
+touch src/compliance/kycLevels.ts
+touch src/compliance/riskEngine.ts
+touch src/routes/compliance.ts
+```
+
+**KYC Levels:**
+
+| Level      | Max Single Tx | Max Balance | Use Case                |
+| ---------- | ------------- | ----------- | ----------------------- |
+| Unverified | 0             | 0           | No transactions allowed |
+| Basic      | 100           | 500         | Retail customers        |
+| Standard   | 1000          | 5000        | Normal merchants        |
+| Business   | 10000         | 50000       | Business entities       |
+| VIP        | 100000        | 500000      | Premium partners        |
+
+## Testing: KYC Enforcement
+
+**Verify setup:**
+
+Register compliance routes in `server.ts`:
+
+```typescript
+import complianceRoutes from "./routes/compliance";
+app.use("/api", complianceRoutes);
+```
+
+---
+
+**Step 1: Attempt transaction with Unverified status (should fail)**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":10}'
+```
+
+**Response:**
+
+```json
+{
+    "error": "KYC_TX_LIMIT"
+}
+```
+
+**Reason:** Merchant defaulting to Unverified level (maxTx=0). Any positive amount exceeds limit.
+
+![KYC Unverified Blocked](../img/kyc_aml_machnism/kyc_tx_limit.png)
+
+---
+
+**Step 2: Upgrade KYC to Basic**
+
+```bash
+curl -X POST http://localhost:3000/api/compliance/set-kyc \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"level":"Basic"}'
+```
+
+**Response:**
+
+```json
+{
+    "message": "KYC updated",
+    "merchantId": 2,
+    "level": "Basic"
+}
+```
+
+---
+
+**Step 3: Deposit 50 within Basic limit (should succeed)**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":50}'
+```
+
+**Response:**
+
+```json
+{
+    "message": "Deposit successful",
+    "balance": 50
+}
+```
+
+---
+
+**Step 4: Attempt deposit of 200 exceeding Basic limit (should fail)**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":200}'
+```
+
+**Response:**
+
+```json
+{
+    "error": "KYC_TX_LIMIT"
+}
+```
+
+**Reason:** Basic level maxTx=100. Request of 200 exceeds limit.
+
+Wallet balance remains 50 (transaction not recorded).
+
+![Basic level TX Limit](../img/kyc_aml_machnism/basic_level_kyc_check.png)
+
+---
+
+**Step 5: Deposit 100 within Basic limit (should succeed)**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":100}'
+```
+
+**Response:**
+
+```json
+{
+    "message": "Deposit successful",
+    "balance": 150
+}
+```
+
+Wallet now has 50 + 100 = 150.
+
+---
+
+**Step 6: Attempt card spend of 120 exceeding Basic limit (should fail)**
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":120}'
+```
+
+**Response:**
+
+```json
+{
+    "error": "KYC_TX_LIMIT"
+}
+```
+
+**Reason:** Basic level maxTx=100. Card spend of 120 exceeds limit even though wallet has 150 balance.
+
+---
+
+**Step 7: Card spend of 60 within Basic limit (should succeed)**
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":60}'
+```
+
+**Response:**
+
+```json
+{
+    "message": "Card spend approved",
+    "balance": 90
+}
+```
+
+Wallet balance: 150 - 60 = 90.
+
+**Output:**
+
+![Basic level spend](../img/kyc_aml_machnism/basic_level_spend_check.png)
+
+---
+
+**Step 8: Verify transaction ledger**
+
+```sql
+SELECT type, amount, balance_after FROM transactions WHERE merchant_id = 2 ORDER BY created_at ASC;
+```
+
+**Output:**
+
+![Merchant Transaction Record](../img/kyc_aml_machnism/merchant2_tx_record.png)
+
+---
+
+## Architecture: How KYC Flows Work
+
+```
+Request Flow:
+┌───────────────────┐
+│ POST /api/cards   │
+│ POST /api/wallets │
+└────────┬──────────┘
+         │
+    ┌────v────────────────────────────┐
+    │ complianceCheck()               │
+    │ 1. Check if merchant is frozen  │
+    │ 2. Look up merchant's KYC level │
+    └────┬─────────────────────────┬──┘
+         │                         │
+    FROZEN            ┌────────────v────────────┐
+    (REJECT)          │ evaluateRisk()          │
+                      │ 1. Check amount > maxTx │
+                      │ 2. Check total > max    │
+                      └──────┬───────┬──────────┘
+                             │       │
+                        PASS │       │ FAIL
+                             │       │
+                        ┌────v──┐ ┌──v────┐
+                        │PROCEED│ │REJECT │
+                        └───────┘ └───────┘
+```
+
+---
+
+## What This Enables
+
+- KYC-based transaction limits preventing suspicious activity
+- Risk engine enforcement across all endpoints (wallets, cards)
+- Upgradeable verification levels as merchants verify their identity
+- Complete compliance audit trail in transaction ledger
+- Foundation for advanced AML (Anti-Money Laundering) rules
 
 ---
 
@@ -388,84 +567,38 @@ The transaction count remains unchanged—the failed transaction is not recorded
 
 ## Migration from In-Memory to PostgreSQL
 
-Previously, all merchant data was stored in memory using JavaScript Maps and objects:
-
--   `apiKeyRegistry`: In-memory `Map<string, number>` storing API Key → Merchant ID mappings
--   `merchantDb`: In-memory object storing merchant records
--   `walletDb`: In-memory object storing wallet balances
--   `cardDb`: In-memory object storing card records
--   `transactionLedger`: In-memory array storing all transactions
-
-This approach was sufficient for learning but lacked persistence. When the server restarted, all data was lost.
+Previously, all merchant data was stored in memory using JavaScript Maps and objects. This approach lacked persistence—when the server restarted, all data was lost.
 
 ## Implementation: PostgreSQL Storage
 
-We've migrated to PostgreSQL to provide persistent, reliable storage for all platform data. The routes have been refactored to replace in-memory storage with database queries. Key changes:
+We've migrated to PostgreSQL to provide persistent, reliable storage for all platform data. Key changes:
 
--   **api_keys table**: Stores API Key hashes linked to merchants via foreign key
--   **merchants table**: Persistent merchant registration data
--   **wallets table**: Merchant balance storage with atomic updates
--   **transactions table**: Complete audit trail of all balance movements and card spending
--   **cards table**: Virtual card records linked to merchant wallets
+- **api_keys table**: Stores API Key hashes linked to merchants via foreign key
+- **merchants table**: Persistent merchant registration data
+- **wallets table**: Merchant balance storage with atomic updates
+- **transactions table**: Complete audit trail of all balance movements and card spending
+- **cards table**: Virtual card records linked to merchant wallets
 
 The authentication middleware (`auth.ts`) now validates API Keys by querying the PostgreSQL `api_keys` table instead of checking an in-memory Map.
 
-All wallet operations (deposit, withdraw, transfer, card spend) now:
+All wallet and card operations now:
 
-1. Read current balance from the `wallets` table
-2. Validate sufficient funds
-3. Execute atomic database transactions to update balance and record the movement in the `transactions` table
-
-### End-to-End Flow: From API Request to Database Verification
-
-**Step 1: Execute complete API operation chain**
-
-![API Operations Flow](../img/services_inDB/service_chain.png)
-
-This demonstrates a full workflow executing multiple operations in sequence:
-
--   Create merchant and receive API Key
--   Create wallet for the merchant
--   Deposit 100 USDC to wallet
--   Create virtual card
--   Spend 20 USDC via card
-
-All operations return success responses with updated balances and transaction details.
-
----
-
-**Step 2: Query PostgreSQL to verify data persistence**
-
-![Database Query Results](../img/services_inDB/service_data_import.png)
-
-Running SQL queries against the persistent database reveals:
-
-**merchants table**: One Test Merchant created at 2026-01-16 07:25:10 (1 row)
-
-**wallets table**: Wallet ID 1 for merchant 1 with balance 80.000000 (result of 100 deposited - 20 spent via card)
-
-**cards table**: Card 4242-4242-4242-8060 issued to merchant 1 with active status (1 row)
-
-**transactions table**:
-
--   Row 1: Deposit transaction, +100 USDC, balance after 100
--   Row 2: Card spend transaction, -20 USDC, balance after 80
-
-(2 rows total)
-
-All data is atomically persisted with timestamps and complete audit trail. This demonstrates how the refactored routes successfully replaced in-memory operations with reliable database persistence.
+1. Read current state from PostgreSQL
+2. Validate against business rules and KYC limits
+3. Execute atomic database transactions
+4. Record movements in the transactions table
 
 ---
 
 ## Core Tables Overview
 
-| Table            | Purpose                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------ |
-| **merchants**    | Registered businesses with name, email, created timestamp                                              |
-| **api_keys**     | Authentication credentials linking API keys to merchants                                               |
-| **wallets**      | Merchant balance ledgers storing currency and balance (NUMERIC type for precision)                     |
-| **transactions** | Complete audit trail: type (deposit/withdraw/transfer/card_spend), amount, sender, receiver, timestamp |
-| **cards**        | Virtual cards linking to merchant wallets with card numbers and status                                 |
+| Table            | Purpose                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------ |
+| **merchants**    | Registered businesses with name, created timestamp                                   |
+| **api_keys**     | Authentication credentials linking API keys to merchants                             |
+| **wallets**      | Merchant balance ledgers storing balance with NUMERIC precision                      |
+| **transactions** | Audit trail: type (deposit/withdraw/card_spend), amount, sender, receiver, timestamp |
+| **cards**        | Virtual cards linking to merchant wallets with card numbers and status               |
 
 For detailed setup instructions, database installation, schema DDL, and PostgreSQL connection configuration, see **[PostgreSQL_Setup](./PostgreSQL_setup_guide.md)**
 
@@ -473,8 +606,8 @@ For detailed setup instructions, database installation, schema DDL, and PostgreS
 
 ## What This Enables
 
--   **Data Persistence**: All merchant data survives server restarts
--   **Audit Trail**: Complete PostgreSQL transaction history for compliance and debugging
--   **Scalability**: Database queries are more efficient than in-memory lookups at scale
--   **Reliability**: PostgreSQL's ACID compliance ensures financial data consistency
--   **Multi-Instance**: Multiple server instances can share the same database for horizontal scaling
+- **Data Persistence**: All merchant data survives server restarts
+- **Audit Trail**: Complete PostgreSQL transaction history for compliance and debugging
+- **Scalability**: Database queries are more efficient than in-memory lookups at scale
+- **Reliability**: PostgreSQL's ACID compliance ensures financial data consistency
+- **Multi-Instance**: Multiple server instances can share the same database for horizontal scaling

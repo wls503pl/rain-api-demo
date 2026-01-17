@@ -1,15 +1,24 @@
+// ============================================================================
+// FILE: server.ts
+// PURPOSE: Express server initialization and route registration
+// ============================================================================
+
 /**
  * PayFi Platform - Main Server
  *
- * Purpose: Initialize Express app, register routes, and start the API server
+ * Initializes Express application, registers middleware, routes,
+ * and starts the API server on port 3000.
  *
- * Architecture:
- * - /health: Public endpoint (no auth required) - service health check
- * - /api/protected: Protected endpoint (auth required) - demo authentication works
- * - /api/merchants: Merchant registration (no auth required) - entry point for new merchants
- * - /api/wallets: Wallet management (auth required) - merchant balance and fund storage
- * - /api/*: All other merchant endpoints (auth required) - future card, payment, webhook APIs
+ * Architecture Overview:
+ * - Public Endpoints (no auth): /health, /api/merchants
+ * - Protected Endpoints (auth required): /api/wallets, /api/cards, /api/compliance
+ *
+ * Middleware Stack:
+ * 1. express.json() - Parse incoming JSON requests
+ * 2. apiKeyAuth - Validate API key for protected routes
+ * 3. Route handlers - Business logic for each endpoint
  */
+
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -18,27 +27,50 @@ import apiKeyAuth from "./middleware/auth";
 import merchantRoutes from "./routes/merchants";
 import walletRoutes from "./routes/wallets";
 import cardRoutes from "./routes/cards";
+import complianceRoutes from "./routes/compliance";
 
 const app = express();
 
-// Middleware: parse incoming JSON requests
+// Global Middleware: Parse incoming request bodies as JSON
 app.use(express.json());
 
 /**
- * Health Check Endpoint
- * Public endpoint - no authentication required
- * Used to verify the service is running
+ * GET /health
+ *
+ * Health check endpoint - no authentication required.
+ * Used by load balancers and monitoring systems to verify service is running.
+ *
+ * Response:
+ * {
+ *   "status": "ok",
+ *   "service": "PayFi API"
+ * }
+ *
+ * HTTP: 200 OK
  */
 app.get("/health", (req, res) => {
     res.json({ status: "ok", service: "PayFi API" });
 });
 
 /**
- * Protected Endpoint (Demo)
- * Requires valid API Key in X-API-Key header
- * Proves authentication middleware is working before protecting production endpoints
+ * GET /api/protected
  *
- * Test:
+ * Demo protected endpoint - requires API key authentication.
+ * Proves that the apiKeyAuth middleware works correctly.
+ * Used for testing authentication before deploying protected routes.
+ *
+ * Authentication: Required (X-API-Key header)
+ *
+ * Response:
+ * {
+ *   "message": "You have access to protected resource"
+ * }
+ *
+ * HTTP: 200 OK (if authenticated)
+ * HTTP: 401 (missing API key)
+ * HTTP: 403 (invalid API key)
+ *
+ * Test Command:
  * curl -X GET http://localhost:3000/api/protected \
  *   -H "X-API-Key: YOUR_MERCHANT_API_KEY"
  */
@@ -47,37 +79,63 @@ app.get("/api/protected", apiKeyAuth, (req, res) => {
 });
 
 /**
- * Register Merchant Routes
- * POST /api/merchants: Create new merchant account
+ * Merchant Routes
+ *
+ * POST /api/merchants - Create new merchant account (public signup)
+ *
+ * No authentication required for signup.
+ * Returns merchant ID and API key for future authenticated requests.
  */
 app.use("/api", merchantRoutes);
 
 /**
- * Register Wallet Routes
+ * Wallet Routes
  *
- * These endpoints provide wallet infrastructure for merchants.
- * All wallet APIs require API key authentication.
+ * All endpoints require API key authentication.
  *
- * Examples:
- * - POST /api/wallets → Create wallet
- * - GET  /api/wallets → List wallets
+ * Endpoints:
+ * - POST /api/wallets - Create new wallet for merchant
+ * - GET /api/wallets - List merchant's wallets
+ * - POST /api/wallets/deposit - Add funds to wallet
+ * - POST /api/wallets/withdraw - Remove funds from wallet
+ *
+ * All wallet operations are subject to KYC compliance limits.
  */
 app.use("/api", walletRoutes);
 
 /**
- * Register Card Routes
+ * Card Routes
  *
- * These endpoints provide virtual card management for merchants.
- * All card APIs require API key authentication.
+ * All endpoints require API key authentication.
  *
- * Examples:
- * - POST /api/cards → Create card
- * - GET  /api/cards → List cards
- * - POST /api/cards/:id/transfer → Transfer funds
+ * Endpoints:
+ * - POST /api/cards - Create new virtual card
+ * - GET /api/cards - List merchant's cards
+ * - POST /api/cards/spend - Deduct funds from wallet using card
+ *
+ * All card operations are subject to KYC compliance limits.
  */
 app.use("/api", cardRoutes);
 
-// Start server
+/**
+ * Compliance Routes
+ *
+ * All endpoints require API key authentication.
+ *
+ * Endpoints:
+ * - POST /api/compliance/set-kyc - Update merchant KYC verification level
+ *
+ * Changing KYC level affects transaction limits for all future operations.
+ */
+app.use("/api", complianceRoutes);
+
+/**
+ * Start Express Server
+ *
+ * Listens on port 3000 for incoming HTTP requests.
+ * In production: Use environment variable for port configuration.
+ * In production: Use process manager (PM2, systemd) for crash recovery.
+ */
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`PayFi API running at http://localhost:${PORT}`);

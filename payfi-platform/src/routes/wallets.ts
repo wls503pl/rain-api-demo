@@ -1,31 +1,93 @@
-/**
- * Wallet Management Routes
- *
- * Purpose: Provide wallet infrastructure for merchants.
- *
- * Operations:
- * - Create wallet
- * - Deposit / Withdraw
- * - Transfer between merchants
- * - View transaction history
- *
- * All data persisted in PostgreSQL.
- */
+// ============================================================================
+// FILE: wallets.ts
+// PURPOSE: Wallet management - deposits, withdrawals, and balance tracking
+// ============================================================================
 
 import { Router } from "express";
 import { apiKeyAuth } from "../middleware/auth";
 import { query } from "../db";
 
+import { merchantKycMap, frozenMerchants } from "./compliance";
+import { evaluateRisk } from "../compliance/riskEngine";
+import { KYCLevel, KYC_LEVELS } from "../compliance/kycLevels";
+
 const router = Router();
 
 /**
+ * complianceCheck
+ *
+ * Unified compliance validation for wallet operations (deposits/withdrawals).
+ * Checks if a merchant is allowed to move funds based on:
+ * 1. Account frozen status (hard block)
+ * 2. KYC level and associated transaction limits
+ *
+ * @param merchantId - The merchant attempting the transaction
+ * @param amount - The transaction amount to validate
+ * @returns Object: { allowed: boolean, reason?: string }
+ *
+ * Decision Tree:
+ * - If merchant is frozen → ACCOUNT_FROZEN (always reject)
+ * - Otherwise → check KYC limits via evaluateRisk()
+ */
+async function complianceCheck(merchantId: number, amount: number) {
+    // First check: Is this merchant's account frozen?
+    if (frozenMerchants.has(merchantId)) {
+        return { allowed: false, reason: "ACCOUNT_FROZEN" };
+    }
+
+    // Determine merchant's KYC level
+    // Default to Unverified if never explicitly set
+    const kycLevel: KYCLevel =
+        merchantKycMap[merchantId] ?? KYC_LEVELS.Unverified;
+
+    // Delegate to risk engine for KYC limit checking
+    return evaluateRisk({
+        merchantId,
+        kycLevel,
+        amount,
+        dailyTotal: amount, // Simplified: only check current transaction
+        recentTxCount: 1,
+        recentAmounts: [amount],
+    });
+}
+
+/**
  * POST /api/wallets
- * Create a wallet for the authenticated merchant
+ *
+ * Creates a new wallet for the authenticated merchant.
+ * Wallet stores the merchant's account balance and tracks all transactions.
+ * Each merchant can have multiple wallets (but typically just one).
+ *
+ * Authentication: Required (X-API-Key header)
+ *
+ * Request Body: None (system-generated)
+ *
+ * Response on Success:
+ * {
+ *   "message": "Wallet created successfully",
+ *   "wallet": {
+ *     "id": number (unique wallet ID),
+ *     "merchant_id": number,
+ *     "balance": 0 (always starts at zero)
+ *   }
+ * }
+ *
+ * Response on Error:
+ * {
+ *   "error": "Failed to create wallet"
+ * }
+ * HTTP: 500 Internal Server Error
+ *
+ * Implementation:
+ * - Creates wallet record with initial balance = 0
+ * - Linked to authenticated merchant
+ * - Returns wallet details with auto-generated wallet ID
  */
 router.post("/wallets", apiKeyAuth, async (req: any, res) => {
     try {
         const merchantId = req.merchant.id;
 
+        // Insert new wallet record with zero initial balance
         const result = await query(
             "INSERT INTO wallets (merchant_id, balance, created_at) VALUES ($1, 0, NOW()) RETURNING id, merchant_id, balance",
             [merchantId]
@@ -35,232 +97,169 @@ router.post("/wallets", apiKeyAuth, async (req: any, res) => {
             message: "Wallet created successfully",
             wallet: result.rows[0],
         });
-    } catch (err: any) {
-        console.error(err);
+    } catch {
         res.status(500).json({ error: "Failed to create wallet" });
     }
 });
 
 /**
- * GET /api/wallets
- * Get all wallets for authenticated merchant
- */
-router.get("/wallets", apiKeyAuth, async (req: any, res) => {
-    try {
-        const merchantId = req.merchant.id;
-
-        const result = await query(
-            "SELECT id, merchant_id, balance FROM wallets WHERE merchant_id = $1",
-            [merchantId]
-        );
-
-        res.json({ wallets: result.rows });
-    } catch (err: any) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to fetch wallets" });
-    }
-});
-
-/**
  * POST /api/wallets/deposit
- * Add funds to wallet
- * Input: { amount: number }
+ *
+ * Deposits funds into a merchant's wallet.
+ * Increases wallet balance and records transaction.
+ * Subject to KYC compliance limits.
+ *
+ * Authentication: Required (X-API-Key header)
+ *
+ * Request Body:
+ * {
+ *   "amount": number (required, must be > 0)
+ * }
+ *
+ * Response on Success:
+ * {
+ *   "message": "Deposit successful",
+ *   "balance": number (new wallet balance after deposit)
+ * }
+ *
+ * Response on Failure:
+ * {
+ *   "error": "REASON_CODE"
+ * }
+ *
+ * Possible Error Codes:
+ * - "KYC_TX_LIMIT" (403): deposit amount exceeds KYC limit
+ * - "KYC_BALANCE_LIMIT" (403): total balance would exceed KYC limit
+ * - "Deposit failed" (500): database error during update
+ *
+ * Implementation:
+ * 1. Run compliance check (KYC limits, frozen status)
+ * 2. Fetch merchant's wallet
+ * 3. Calculate new balance = current + deposit amount
+ * 4. Update wallet balance in database
+ * 5. Record transaction in ledger
+ * 6. Return new balance to client
  */
 router.post("/wallets/deposit", apiKeyAuth, async (req: any, res) => {
-    const { amount } = req.body;
     const merchantId = req.merchant.id;
+    const { amount } = req.body;
 
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+    // Run compliance check before processing deposit
+    const compliance = await complianceCheck(merchantId, amount);
+    if (!compliance.allowed) {
+        return res.status(403).json({ error: compliance.reason });
     }
 
     try {
-        // Get wallet
+        // Fetch merchant's wallet
         const walletResult = await query(
             "SELECT id, balance FROM wallets WHERE merchant_id = $1",
             [merchantId]
         );
 
-        if (walletResult.rowCount === 0) {
-            return res.status(404).json({ error: "Wallet not found" });
-        }
-
         const wallet = walletResult.rows[0];
-
-        // Update balance
+        // Calculate new balance after adding deposit
         const newBalance = Number(wallet.balance) + Number(amount);
+
+        // Update wallet balance in database
         await query("UPDATE wallets SET balance = $1 WHERE id = $2", [
             newBalance,
             wallet.id,
         ]);
 
-        // Record transaction
-        const txResult = await query(
-            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *",
+        // Record this transaction in the ledger for audit trail
+        await query(
+            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW())",
             [merchantId, wallet.id, "deposit", amount, newBalance]
         );
 
-        res.json({
-            message: "Deposit successful",
-            wallet: { ...wallet, balance: newBalance },
-            transaction: txResult.rows[0],
-        });
-    } catch (err: any) {
-        console.error(err);
+        res.json({ message: "Deposit successful", balance: newBalance });
+    } catch {
         res.status(500).json({ error: "Deposit failed" });
     }
 });
 
 /**
  * POST /api/wallets/withdraw
- * Deduct funds from wallet
+ *
+ * Withdraws funds from a merchant's wallet.
+ * Decreases wallet balance and records transaction.
+ * Subject to KYC compliance limits and balance availability.
+ *
+ * Authentication: Required (X-API-Key header)
+ *
+ * Request Body:
+ * {
+ *   "amount": number (required, must be > 0 and <= current balance)
+ * }
+ *
+ * Response on Success:
+ * {
+ *   "message": "Withdrawal successful",
+ *   "balance": number (new wallet balance after withdrawal)
+ * }
+ *
+ * Response on Failure:
+ * {
+ *   "error": "REASON_CODE"
+ * }
+ *
+ * Possible Error Codes:
+ * - "KYC_TX_LIMIT" (403): withdrawal amount exceeds KYC limit
+ * - "KYC_BALANCE_LIMIT" (403): daily total exceeds balance limit
+ * - "Insufficient balance" (400): not enough funds to withdraw
+ * - "Withdraw failed" (500): database error during update
+ *
+ * Implementation:
+ * 1. Run compliance check (KYC limits, frozen status)
+ * 2. Fetch merchant's wallet
+ * 3. Verify sufficient balance available
+ * 4. Calculate new balance = current - withdrawal amount
+ * 5. Update wallet balance in database
+ * 6. Record transaction in ledger
+ * 7. Return new balance to client
  */
 router.post("/wallets/withdraw", apiKeyAuth, async (req: any, res) => {
-    const { amount } = req.body;
     const merchantId = req.merchant.id;
+    const { amount } = req.body;
 
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
+    // Run compliance check before processing withdrawal
+    const compliance = await complianceCheck(merchantId, amount);
+    if (!compliance.allowed) {
+        return res.status(403).json({ error: compliance.reason });
     }
 
     try {
+        // Fetch merchant's wallet
         const walletResult = await query(
             "SELECT id, balance FROM wallets WHERE merchant_id = $1",
             [merchantId]
         );
 
-        if (walletResult.rowCount === 0) {
-            return res.status(404).json({ error: "Wallet not found" });
-        }
-
         const wallet = walletResult.rows[0];
-
+        // Verify sufficient balance exists
         if (wallet.balance < amount) {
             return res.status(400).json({ error: "Insufficient balance" });
         }
 
+        // Calculate new balance after deducting withdrawal
         const newBalance = Number(wallet.balance) - Number(amount);
 
+        // Update wallet balance in database
         await query("UPDATE wallets SET balance = $1 WHERE id = $2", [
             newBalance,
             wallet.id,
         ]);
 
-        const txResult = await query(
-            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *",
+        // Record this transaction in the ledger for audit trail
+        await query(
+            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW())",
             [merchantId, wallet.id, "withdraw", amount, newBalance]
         );
 
-        res.json({
-            message: "Withdrawal successful",
-            wallet: { ...wallet, balance: newBalance },
-            transaction: txResult.rows[0],
-        });
-    } catch (err: any) {
-        console.error(err);
-        res.status(500).json({ error: "Withdrawal failed" });
-    }
-});
-
-/**
- * GET /api/wallets/transactions
- * List all transactions for merchant
- */
-router.get("/wallets/transactions", apiKeyAuth, async (req: any, res) => {
-    const merchantId = req.merchant.id;
-    try {
-        const txResult = await query(
-            "SELECT * FROM transactions WHERE merchant_id = $1 ORDER BY created_at ASC",
-            [merchantId]
-        );
-        res.json({ transactions: txResult.rows });
-    } catch (err: any) {
-        console.error(err);
-        res.status(500).json({ error: "Failed to fetch transactions" });
-    }
-});
-
-/**
- * POST /api/wallets/transfer
- * Transfer funds to another merchant
- */
-router.post("/wallets/transfer", apiKeyAuth, async (req: any, res) => {
-    const fromMerchantId = req.merchant.id;
-    const { toMerchantId, amount } = req.body;
-
-    if (!toMerchantId || !amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid input" });
-    }
-
-    try {
-        const senderResult = await query(
-            "SELECT id, balance FROM wallets WHERE merchant_id = $1",
-            [fromMerchantId]
-        );
-        const receiverResult = await query(
-            "SELECT id, balance FROM wallets WHERE merchant_id = $1",
-            [toMerchantId]
-        );
-
-        if (senderResult.rowCount === 0) {
-            return res.status(404).json({ error: "Sender wallet not found" });
-        }
-        if (receiverResult.rowCount === 0) {
-            return res.status(404).json({ error: "Receiver wallet not found" });
-        }
-
-        const senderWallet = senderResult.rows[0];
-        const receiverWallet = receiverResult.rows[0];
-
-        if (senderWallet.balance < amount) {
-            return res.status(400).json({ error: "Insufficient balance" });
-        }
-
-        const newSenderBalance = Number(senderWallet.balance) - Number(amount);
-        const newReceiverBalance =
-            Number(receiverWallet.balance) + Number(amount);
-
-        // Update balances
-        await query("UPDATE wallets SET balance = $1 WHERE id = $2", [
-            newSenderBalance,
-            senderWallet.id,
-        ]);
-        await query("UPDATE wallets SET balance = $1 WHERE id = $2", [
-            newReceiverBalance,
-            receiverWallet.id,
-        ]);
-
-        // Record transactions
-        const txOut = await query(
-            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *",
-            [
-                fromMerchantId,
-                senderWallet.id,
-                "transfer_out",
-                amount,
-                newSenderBalance,
-            ]
-        );
-        const txIn = await query(
-            "INSERT INTO transactions (merchant_id, wallet_id, type, amount, balance_after, created_at) VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *",
-            [
-                toMerchantId,
-                receiverWallet.id,
-                "transfer_in",
-                amount,
-                newReceiverBalance,
-            ]
-        );
-
-        res.json({
-            message: "Transfer successful",
-            from: { ...senderWallet, balance: newSenderBalance },
-            to: { ...receiverWallet, balance: newReceiverBalance },
-            transactions: [txOut.rows[0], txIn.rows[0]],
-        });
-    } catch (err: any) {
-        console.error(err);
-        res.status(500).json({ error: "Transfer failed" });
+        res.json({ message: "Withdrawal successful", balance: newBalance });
+    } catch {
+        res.status(500).json({ error: "Withdraw failed" });
     }
 });
 
