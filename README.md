@@ -6,98 +6,108 @@ A production-grade B2B payment infrastructure API designed to help fintech compa
 
 PayFi is a simulated payment platform that demonstrates the core infrastructure patterns used by modern fintech companies like Rain, Stripe, and Circle. It provides merchants with:
 
--   **Merchant Onboarding** – Self-service registration and API key generation
--   **Wallet Management** – Isolated balance tracking per merchant with deposit/withdrawal capabilities
--   **Fund Transfers** – Peer-to-peer transfers between merchants with real-time validation
--   **Fund Flow Control** – Real-time balance validation and transaction ledger
--   **Card Issuing** – Virtual card provisioning with spending against wallet balance
--   **Payment Processing** – Foundation for payment settlement
--   **Webhook Infrastructure** – Event-driven notifications for transaction updates
--   **Audit Trail** – Complete transaction history for compliance and reconciliation
+- **Merchant Onboarding** – Self-service registration and API key generation
+- **Wallet Management** – Isolated balance tracking per merchant with deposit/withdrawal capabilities
+- **Fund Transfers** – Peer-to-peer transfers between merchants with real-time validation
+- **Fund Flow Control** – Real-time balance validation and transaction ledger
+- **Card Issuing** – Virtual card provisioning with spending against wallet balance
+- **KYC Compliance** – Risk engine with transaction limits based on verification levels
+- **Audit Trail** – Complete transaction history for compliance and reconciliation
 
 ## Core Features
 
 ### Phase 1: Merchant Integration ✅
 
--   External businesses register and receive API credentials
--   API Key-based authentication secures all protected endpoints
--   Merchant identity is attached to every request
+- External businesses register and receive API credentials
+- API Key-based authentication secures all protected endpoints
+- Merchant identity is attached to every request
 
 ### Phase 2: Wallet System ✅
 
--   Each merchant automatically receives an isolated wallet
--   Deposit funds (top-up mechanism)
--   Withdraw funds with balance validation
--   Transfer funds to other merchants
--   View complete transaction history
--   Automatic prevention of overdrafts
+- Each merchant automatically receives an isolated wallet
+- Deposit funds (top-up mechanism)
+- Withdraw funds with balance validation
+- Transfer funds to other merchants
+- View complete transaction history
+- Automatic prevention of overdrafts
 
 ### Phase 3: Card Issuing ✅
 
--   Virtual card provisioning per merchant
--   Card spending against wallet balance
--   Real-time balance deductions
--   Transaction recording in ledger
--   Automatic fraud prevention via balance validation
+- Virtual card provisioning per merchant
+- Card spending against wallet balance
+- Real-time balance deductions
+- Transaction recording in ledger
+- Automatic fraud prevention via balance validation
 
-### Phase 4: Payments (Coming Soon)
+### Phase 4: KYC Compliance ✅
 
--   Direct payment processing from wallet
--   Settlement and reconciliation
--   Multi-merchant transaction support
+- Five-tier KYC verification levels (Unverified → VIP)
+- Transaction limits based on merchant verification status
+- Risk evaluation engine for compliance checking
+- Real-time upgrade of KYC levels via API
+- Transaction blocking for unverified merchants
+- Complete audit trail of all blocked transactions
 
-### Phase 5: Webhooks (Coming Soon)
+### Phase 5: Payment Processing (Coming Soon)
 
--   Event-driven architecture for real-time notifications
--   Merchant receives updates on transaction state changes
--   Reliable delivery with retry logic
+- Direct payment processing from wallet
+- Settlement and reconciliation
+- Multi-merchant transaction support
 
-### Phase 6: Polish (Coming Soon)
+### Phase 6: Webhooks (Coming Soon)
 
--   Production-grade error handling
--   Rate limiting and DDoS protection
--   Comprehensive API documentation
--   SDK support for common languages
+- Event-driven architecture for real-time notifications
+- Merchant receives updates on transaction state changes
+- Reliable delivery with retry logic
+
+### Phase 7: Production Polish (Coming Soon)
+
+- Enhanced error handling
+- Rate limiting and DDoS protection
+- Comprehensive API documentation
+- SDK support for common languages
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────┐
 │   Merchants                          │
-└──────────────────┬───────────────────┘
+└──────────────────────┬──────────────┘
              │ (API Key Auth)
              ▼
-┌──────────────────────────────────────────────────────────┐
-│   PayFi API Gateway                                      │
-│  ├─ /merchants                                           │
-│  ├─ /wallets                                             │
-│  ├─ /wallets/deposit                                     │
-│  ├─ /wallets/withdraw                                    │
-│  ├─ /wallets/transfer                                    │
-│  ├─ /wallets/transactions                                │
-│  ├─ /cards                                               │
-│  ├─ /cards/spend                                         │
-│  └─ (Future: /payments, /webhooks)                       │
-└──────────────────┬──────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│   PayFi API Gateway                                               │
+│  ├─ /merchants                                                    │
+│  ├─ /wallets                                                      │
+│  ├─ /wallets/deposit                                              │
+│  ├─ /wallets/withdraw                                             │
+│  ├─ /wallets/transfer                                             │
+│  ├─ /wallets/transactions                                         │
+│  ├─ /cards                                                        │
+│  ├─ /cards/spend                                                  │
+│  ├─ /compliance/set-kyc                                           │
+│  └─ (Future: /payments, /webhooks)                                │
+└───────────────────────────────────────┬───────────────────────────┘
              │
              ▼
-┌──────────────────────────────────────────────────────────┐
-│   Core Services                                          │
-│  ├─ Authentication Layer                                 │
-│  ├─ Ledger System                                        │
-│  ├─ Balance Management                                   │
-│  └─ Transaction History                                  │
-└──────────────────┬──────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│   Core Services                                                   │
+│  ├─ Authentication Layer (API Key validation)                     │
+│  ├─ Risk Engine (KYC compliance checking)                         │
+│  ├─ Ledger System (Transaction recording)                         │
+│  ├─ Balance Management                                            │
+│  └─ Transaction History                                           │
+└───────────────────────────────────────┬───────────────────────────┘
              │
              ▼
-┌──────────────────────────────────────────────────────────┐
-│   PostgreSQL Database                                    │
-│  ├─ merchants table                                      │
-│  ├─ api_keys table                                       │
-│  ├─ wallets table                                        │
-│  ├─ cards table                                          │
-│  └─ transactions table                                   │
-└──────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│   PostgreSQL Database                                             │
+│  ├─ merchants table                                               │
+│  ├─ api_keys table                                                │
+│  ├─ wallets table                                                 │
+│  ├─ cards table                                                   │
+│  └─ transactions table                                            │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Capabilities
@@ -110,6 +120,10 @@ Each merchant operates in a completely isolated context. Their API Key grants ac
 
 Before any withdrawal, transfer, or card spending, the system validates sufficient balance. This prevents overdrafts and ensures merchants cannot spend money they don't have.
 
+### KYC-Enforced Limits
+
+Transaction limits are dynamically enforced based on merchant KYC verification level. Unverified merchants are blocked from all transactions. Each level provides increasing transaction capacity.
+
 ### Merchant-to-Merchant Transfers
 
 Merchants can transfer funds to other merchants with automatic validation of both wallets and real-time balance checking.
@@ -120,7 +134,7 @@ Merchants can create and manage virtual cards tied directly to their wallets. Ca
 
 ### Auditability
 
-Every transaction is recorded with timestamp, amount, type, and resulting balance. This creates a complete paper trail for compliance and reconciliation.
+Every transaction is recorded with timestamp, amount, type, and resulting balance. Failed transactions (compliance violations) are logged separately for regulatory review.
 
 ### Data Persistence
 
@@ -134,9 +148,9 @@ The architecture is designed to support thousands of merchants without cross-con
 
 ### Prerequisites
 
--   Node.js 16+
--   PostgreSQL 12+
--   Environment variables configured
+- Node.js 16+
+- PostgreSQL 12+
+- Environment variables configured
 
 ### 1. Register Merchants
 
@@ -152,7 +166,33 @@ curl -X POST http://localhost:3000/api/merchants \
 
 Response includes `merchantId` and `apiKey`.
 
-### 2. Deposit Funds
+### 2. Verify KYC Enforcement (Unverified merchants blocked)
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 10}'
+```
+
+Response: `{"error": "KYC_TX_LIMIT"}` (HTTP 403)
+
+Reason: Default KYC level is Unverified (maxTx=0). All transactions blocked.
+
+### 3. Upgrade KYC Level to Basic
+
+```bash
+curl -X POST http://localhost:3000/api/compliance/set-kyc \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"level":"Basic"}'
+```
+
+Response: `{"message": "KYC updated", "merchantId": 1, "level": "Basic"}`
+
+Available levels: Unverified (0), Basic (100), Standard (1000), Business (10000), VIP (100000)
+
+### 4. Deposit Funds (now allowed with Basic level)
 
 ```bash
 curl -X POST http://localhost:3000/api/wallets/deposit \
@@ -161,14 +201,16 @@ curl -X POST http://localhost:3000/api/wallets/deposit \
   -d '{"amount": 100}'
 ```
 
-### 3. Create Virtual Card
+Transaction is validated against merchant's KYC transaction limit.
+
+### 4. Create Virtual Card
 
 ```bash
 curl -X POST http://localhost:3000/api/cards \
   -H "X-API-Key: MERCHANT_1_API_KEY"
 ```
 
-### 4. Spend with Card
+### 5. Spend with Card
 
 ```bash
 curl -X POST http://localhost:3000/api/cards/spend \
@@ -177,7 +219,9 @@ curl -X POST http://localhost:3000/api/cards/spend \
   -d '{"amount": 20}'
 ```
 
-### 5. Transfer Between Merchants
+Card spend is subject to both KYC limits and available balance.
+
+### 6. Transfer Between Merchants
 
 ```bash
 curl -X POST http://localhost:3000/api/wallets/transfer \
@@ -186,7 +230,7 @@ curl -X POST http://localhost:3000/api/wallets/transfer \
   -d '{"toMerchantId": 2, "amount": 30}'
 ```
 
-### 6. View Transaction History
+### 7. View Transaction History
 
 ```bash
 curl http://localhost:3000/api/wallets/transactions \
@@ -195,22 +239,24 @@ curl http://localhost:3000/api/wallets/transactions \
 
 ## Technical Stack
 
--   **Runtime:** Node.js with TypeScript
--   **Framework:** Express.js for REST API
--   **Database:** PostgreSQL 12+ for persistent storage
--   **Authentication:** API Key-based with database validation
--   **Architecture:** Modular, service-oriented design
+- **Runtime:** Node.js with TypeScript
+- **Framework:** Express.js for REST API
+- **Database:** PostgreSQL 12+ for persistent storage
+- **Authentication:** API Key-based with database validation
+- **Compliance:** Risk engine with KYC-based transaction limits
+- **Architecture:** Modular, service-oriented design
 
 ## Project Status
 
--   ✅ Phase 1: Merchant Integration (Registration, API key auth)
--   ✅ Phase 2: Wallet System (Balance tracking, deposits, withdrawals, transfers, ledger)
--   ✅ Phase 3: Card Issuing (Virtual cards, card spending, balance validation)
--   📄 Phase 4: Payments (In design)
--   📄 Phase 5: Webhooks (In design)
--   📄 Phase 6: Polish (In design)
+- ✅ Phase 1: Merchant Integration (Registration, API key auth)
+- ✅ Phase 2: Wallet System (Balance tracking, deposits, withdrawals, transfers, ledger)
+- ✅ Phase 3: Card Issuing (Virtual cards, card spending, balance validation)
+- ✅ Phase 4: KYC Compliance (Risk engine, transaction limits, verification levels)
+- 🔄 Phase 5: Payment Processing (In design)
+- 🔄 Phase 6: Webhooks (In design)
+- 🔄 Phase 7: Production Polish (In design)
 
 ## Documentation
 
--   **Technical Implementation:** See **[Design_Implemention](./payfi-platform/technical_doc/design_implementation.md)** for detailed architecture patterns and step-by-step guides
--   **Database Setup:** See **[PostgreSQL_Setup](./payfi-platform/technical_doc/PostgreSQL_setup_guide.md)** for PostgreSQL installation, schema definitions, and troubleshooting
+- **Technical Implementation:** See **[Design_Implementation](./technical_doc/design_implementation.md)** for detailed architecture patterns, KYC testing flows, and step-by-step guides
+- **Database Setup:** See **[PostgreSQL_Setup](./technical_doc/PostgreSQL_setup_guide.md)** for PostgreSQL installation, schema definitions, and troubleshooting
