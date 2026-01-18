@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a personal learning project to understand Rain's payment infrastructure architecture, specifically their merchant integration, wallet management, fiat-to-stablecoin flows, card issuing, and webhook systems. Built as a reference implementation for studying fintech infrastructure patterns.
+This is a personal project built upon an understanding of Rain's payment infrastructure architecture, particularly its modules for merchant integration, wallet management, card issuance, and webhook systems. It aims to serve as a reference implementation simulating a fintech infrastructure model.
 
 ---
 
@@ -15,7 +15,7 @@ A merchant is simply a company that signs up on your platform and gets permissio
 
 Merchants use your APIs to:
 
-- create wallets for their users
+- create wallets
 
 - accept payments
 
@@ -44,11 +44,15 @@ curl -X POST http://localhost:3000/api/merchants \
 
 **Success:** You receive a response with the merchant's generated API Key.
 
+**Output:**
+
+![Merchant OnBoarding](../img/merchant_integration/merchant_onboarding.png)
+
 ---
 
 ## Why API Key Authentication?
 
-Once merchants register, the platform must verify every request actually comes from that merchant. An API Key acts as credentials—like a username/password, but for automated systems.
+Once merchants register, the platform must verify every request actually comes from that merchant. An API Key acts as credentialsâ€"like a username/password, but for automated systems.
 
 Without authentication, anyone could pretend to be a merchant and access their wallets or issue cards on their behalf.
 
@@ -72,10 +76,10 @@ Update `src/server.ts` to import the authentication middleware and create a prot
 
 ```bash
 curl -X GET http://localhost:3000/api/protected \
-  -H "X-API-Key: YOUR_API_KEY_HERE"
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
-Replace `YOUR_API_KEY_HERE` with the actual API Key you received from the merchant registration response.
+Replace `YOUR_API_KEY` with the actual API Key you received from the merchant registration response.
 
 **Example:**
 
@@ -97,7 +101,7 @@ Success: You see the message "You have access to protected resource"
 
 ## Why Wallet Management?
 
-Once merchants are authenticated, the platform needs a place to store their funds. A wallet is a merchant's account balance on the platform—it tracks how much money they have available.
+Once merchants are authenticated, the platform needs a place to store their funds. A wallet is a merchant's account balance on the platform, which tracks how much money they have available.
 
 Without wallets:
 
@@ -116,26 +120,24 @@ mkdir src/routes
 touch src/routes/wallets.ts
 ```
 
-This file handles wallet operations. When a merchant is created, they automatically get a wallet. The wallet stores their USDC balance (simulated stablecoin).
-
-Key changes to existing code:
-
-- `auth.ts`: API Key registry now tracks `API Key → Merchant ID` mapping, so wallets know who owns them
-- `merchants.ts`: When registering API Key, we now pass the merchant ID for ownership tracking
-- `server.ts`: Import and register the new wallet routes
+This file handles wallet operations. When a merchant is created, they automatically get a wallet. The wallet stores their funds balance.
 
 **Create merchant and view wallet:**
 
-When a merchant signs up, they automatically receive a wallet with 0 USDC balance. View it using their API Key:
+When a merchant signs up, they automatically receive a wallet with 0 fund balance. View it using their API Key:
 
 ```bash
-curl -X GET http://localhost:3000/api/wallets \
-  -H "X-API-Key: YOUR_API_KEY_HERE"
+curl -X POST http://localhost:3000/api/wallets \
+  -H "X-API-Key: YOUR_API_KEY"
 ```
 
 **Example:**
 
-Success: You see wallet ID, merchant ID, currency (USDC), and balance (0).
+Success: You see wallet ID, merchant ID, currency fund, and balance (0).
+
+**Output:**
+
+![View Wallet](../img/wallet_system/merchant_wallet_verify.png)
 
 ---
 
@@ -151,7 +153,7 @@ This stage introduces a basic ledger system. Merchants can now:
 - View full transaction history
 - Automatic balance validation to prevent overspending
 
-Every balance change is recorded as a transaction for auditability—this is how real financial systems track money movement.
+Every balance change is recorded as a transaction for auditabilityâ€"this is how real financial systems track money movement.
 
 ## Implementation: Deposit, Withdraw, Transfer, Transactions
 
@@ -264,7 +266,7 @@ curl -X POST http://localhost:3000/api/cards/spend \
 
 **Example Scenario:**
 
-Assume you've already created a merchant, deposited 100 USDC, and created a virtual card. Now spend 20:
+Assume you've already created a merchant, deposited 100 funds, and created a virtual card. Now spend 20:
 
 Success: Wallet balance drops from 100 to 80. Transaction recorded in ledger.
 
@@ -280,10 +282,7 @@ SELECT type, amount, balance_after FROM transactions WHERE merchant_id = 2 ORDER
 
 **Example Output:**
 
-| type       | amount | balance_after |
-| ---------- | ------ | ------------- |
-| deposit    | 50     | 50            |
-| card_spend | 20     | 30            |
+![Card Operation](../img/cards_issuing/card_operation_inDB.png)
 
 ---
 
@@ -300,7 +299,7 @@ curl -X POST http://localhost:3000/api/cards/spend \
 
 Error: Transaction rejected. Merchant only has available balance, cannot spend 200.
 
-The transaction is not recorded—the failed transaction is not persisted.
+The transaction is not recordedâ€"the failed transaction is not persisted.
 
 ---
 
@@ -318,7 +317,7 @@ The transaction is not recorded—the failed transaction is not persisted.
 
 ## Why KYC Controls?
 
-A fintech platform without compliance controls is a money laundering risk. KYC (Know Your Customer) verification determines transaction limits—merchants with higher verification levels can transact larger amounts.
+A fintech platform without compliance controls is a money laundering risk. KYC (Know Your Customer) verification determines transaction limitsâ€"merchants with higher verification levels can transact larger amounts.
 
 Without KYC controls:
 
@@ -532,32 +531,152 @@ SELECT type, amount, balance_after FROM transactions WHERE merchant_id = 2 ORDER
 
 ---
 
+## Account Freezing: Immediate Transaction Block
+
+Beyond KYC limits, the platform can freeze high-risk merchant accounts, completely blocking all transactions. This is the final layer of compliance control.
+
+**Why Freeze Accounts?**
+
+- Suspicious activity patterns detected
+- Regulatory compliance requirements
+- Account takeover prevention
+- Immediate risk containment
+
+The frozen status is stored in the `merchants` table. When `is_frozen = true`, all deposits, withdrawals, and card spending are rejected before KYC checks are performed.
+
+**Testing Account Freezing:**
+
+**Setup: Set different KYC levels for merchants**
+
+Give Merchant 1 Basic level, Merchant 2 Standard level:
+
+```bash
+curl -X POST http://localhost:3000/api/compliance/set-kyc \
+  -H "x-api-key: d76aea65b9b191db237ef925603cc40e46b84f97719af2d2" \
+  -H "Content-Type: application/json" \
+  -d '{"level":"Basic"}'
+
+curl -X POST http://localhost:3000/api/compliance/set-kyc \
+  -H "x-api-key: d594a2d7d2dd827560674d6e553bc5c6863dd271d7e65555" \
+  -H "Content-Type: application/json" \
+  -d '{"level":"Standard"}'
+```
+
+**Verify in database:**
+
+```sql
+SELECT id, name, kyc_level, is_frozen FROM merchants;
+```
+
+![KYC Level Setup](../img/kyc_aml_machnism/kyc_level_set_inDB.png)
+
+---
+
+**Freeze Merchant 2:**
+
+```sql
+UPDATE merchants SET is_frozen = true WHERE id = 2;
+```
+
+---
+
+**Attempt deposit (should fail - frozen):**
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "x-api-key: d594a2d7d2dd827560674d6e553bc5c6863dd271d7e65555" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":1}'
+```
+
+**Response:**
+
+```json
+{
+    "error": "ACCOUNT_FROZEN"
+}
+```
+
+---
+
+**Attempt card spend (should fail - frozen):**
+
+```bash
+curl -X POST http://localhost:3000/api/cards/spend \
+  -H "x-api-key: d594a2d7d2dd827560674d6e553bc5c6863dd271d7e65555" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":1}'
+```
+
+**Response:**
+
+```json
+{
+    "error": "ACCOUNT_FROZEN"
+}
+```
+
+![Merchant Frozen](../img/kyc_aml_machnism/merchant_frozen.png)
+
+A frozen account cannot deposit or spend, providing complete transaction lockdown.
+
+---
+
+## Architecture: How Compliance Flows Work
+
+```
+Request Flow:
+┌─────────────────────────────────┐
+│ POST /api/wallets/deposit       │
+│ POST /api/cards/spend           │
+│ POST /api/wallets/withdraw      │
+└────────────┬────────────────────┘
+             │
+    ┌────────v──────────────────────────────┐
+    │ complianceCheck()                     │
+    │ 1. Check if frozen (first!)           │
+    │ 2. Get merchant KYC level             │
+    │ 3. Evaluate transaction against limit │
+    └──┬─────────────────┬────────────┬─────┘
+       │                 │            │
+    FROZEN           FAIL KYCK      PASS
+    (REJECT)         LIMIT (REJECT)   │
+    ACCOUNT_         KYC_TX_          │
+    FROZEN           LIMIT      ┌─────v────┐
+                                │PROCESS TX│
+                                └──────────┘
+```
+
+---
+
 ## Architecture: How KYC Flows Work
 
 ```
 Request Flow:
-┌───────────────────┐
-│ POST /api/cards   │
-│ POST /api/wallets │
-└────────┬──────────┘
-         │
-    ┌────v────────────────────────────┐
-    │ complianceCheck()               │
-    │ 1. Check if merchant is frozen  │
-    │ 2. Look up merchant's KYC level │
-    └────┬─────────────────────────┬──┘
-         │                         │
-    FROZEN            ┌────────────v────────────┐
-    (REJECT)          │ evaluateRisk()          │
-                      │ 1. Check amount > maxTx │
-                      │ 2. Check total > max    │
-                      └──────┬───────┬──────────┘
-                             │       │
-                        PASS │       │ FAIL
-                             │       │
-                        ┌────v──┐ ┌──v────┐
-                        │PROCEED│ │REJECT │
-                        └───────┘ └───────┘
+┌──────────────────────────────────────┐
+│ POST /api/cards                      │
+│ POST /api/wallets                    │
+└──────────────────┬───────────────────┘
+                   │
+    ┌──────────────v────────────────────────┐
+    │ complianceCheck()                     │
+    │ 1. Check if merchant is frozen        │
+    │ 2. Look up merchant's KYC level       │
+    └──┬───────────────────┬────────────────┘
+       │                   │
+      FROZEN          ┌────v──────────────┐
+    (REJECT)          │ evaluateRisk()    │
+                      │ 1. Check amount   │
+                      │    > maxTx        │
+                      │ 2. Check total    │
+                      │    > max balance  │
+                      └──┬────────┬───────┘
+                         │        │
+                    PASS │        │ FAIL
+                         │        │
+                    ┌────v──┐  ┌──v─────┐
+                    │PROCEED│  │REJECT  │
+                    └───────┘  └────────┘
 ```
 
 ---
@@ -567,6 +686,7 @@ Request Flow:
 - KYC-based transaction limits preventing suspicious activity
 - Risk engine enforcement across all endpoints (wallets, cards)
 - Upgradeable verification levels as merchants verify their identity
+- Account freezing for immediate risk containment
 - Complete compliance audit trail in transaction ledger
 - Foundation for advanced AML (Anti-Money Laundering) rules
 
@@ -576,7 +696,7 @@ Request Flow:
 
 ## Migration from In-Memory to PostgreSQL
 
-Previously, all merchant data was stored in memory using JavaScript Maps and objects. This approach lacked persistence—when the server restarted, all data was lost.
+Previously, all merchant data was stored in memory using JavaScript Maps and objects. This approach lacked persistenceâ€"when the server restarted, all data was lost.
 
 ## Implementation: PostgreSQL Storage
 

@@ -10,12 +10,12 @@ PayFi simulates a real-world fintech infrastructure (inspired by Rain, Stripe, C
 
 From a **financial infrastructure perspective**, PostgreSQL is preferred because:
 
--   **ACID compliance** – Guarantees correctness of balances and transactions
--   **Strong transactional guarantees** – Critical for ledger systems
--   **Row-level locking** – Prevents race conditions on balances
--   **Rich constraint system** – Protects data integrity (foreign keys, uniqueness, etc.)
--   **Widely used in fintech** – Common in payment companies, exchanges, and banks
--   **Excellent tooling** – Debuggable via SQL, logs, CLI, and GUI tools
+- **ACID compliance** – Guarantees correctness of balances and transactions
+- **Strong transactional guarantees** – Critical for ledger systems
+- **Row-level locking** – Prevents race conditions on balances
+- **Rich constraint system** – Protects data integrity (foreign keys, uniqueness, etc.)
+- **Widely used in fintech** – Common in payment companies, exchanges, and banks
+- **Excellent tooling** – Debuggable via SQL, logs, CLI, and GUI tools
 
 ---
 
@@ -23,10 +23,10 @@ From a **financial infrastructure perspective**, PostgreSQL is preferred because
 
 This project is developed under:
 
--   OS: Ubuntu 22.04
--   Runtime: Node.js + TypeScript
--   DB: PostgreSQL 14+
--   Driver: `pg` (node-postgres)
+- OS: Ubuntu 22.04
+- Runtime: Node.js + TypeScript
+- DB: PostgreSQL 14+
+- Driver: `pg` (node-postgres)
 
 ---
 
@@ -67,16 +67,16 @@ Inside psql:
 CREATE DATABASE payfi;
 ```
 
+Use the `\l` command to list all databases.
+
+**Output:**
+
+![list all database](../img/services_inDB/create_payfi_database.png)
+
 Connect to it:
 
 ```sql
 \c payfi
-```
-
-You should see:
-
-```
-You are now connected to database "payfi".
 ```
 
 ---
@@ -128,11 +128,11 @@ The project uses `dotenv` to load this configuration.
 The project uses the following tables:
 
 ```sql
-merchants
-wallets
 api_keys
-transactions
 cards
+merchants
+transactions
+wallets
 ```
 
 You can verify tables using:
@@ -141,25 +141,17 @@ You can verify tables using:
 \dt
 ```
 
-Expected output:
+**Output:**
 
-```
- Schema |     Name     | Type  |  Owner
---------+--------------+-------+----------
- public | api_keys     | table | postgres
- public | cards        | table | postgres
- public | merchants    | table | postgres
- public | transactions | table | postgres
- public | wallets      | table | postgres
-```
+![list all database](../img/services_inDB/list_all_tables.png)
 
 These tables support:
 
--   Merchant onboarding
--   Wallet isolation
--   Ledger-based accounting
--   Transfers
--   Card issuance simulation
+- Merchant/Wallet/Cards API_Keys storage
+- Card issuance simulation
+- Merchants Onboarding with their KYC level
+- Ledger-based accounting
+- Wallets' balance
 
 ---
 
@@ -169,15 +161,15 @@ These tables support:
 
 Cause:
 
--   DB_PASSWORD missing or undefined
--   .env not loaded
--   Password not configured in PostgreSQL
+- DB_PASSWORD missing or undefined
+- .env not loaded
+- Password not configured in PostgreSQL
 
 Fix:
 
--   Ensure `.env` exists
--   Ensure password is not empty
--   Run:
+- Ensure `.env` exists
+- Ensure password is not empty
+- Run:
 
 ```sql
 ALTER USER postgres WITH PASSWORD 'postgres123';
@@ -206,6 +198,26 @@ npm install --save-dev @types/pg
 
 ---
 
+### 4. Prevent merchants from registering duplicate names
+
+Fix:
+
+Use the following SQL statement before calling the merchant onboarding API.
+
+```sql
+ALTER TABLE merchants ADD CONSTRAINT unique_merchant_name UNIQUE(name);
+SELECT setval('merchants_id_seq', (SELECT MAX(id) FROM merchants));
+SELECT setval('api_keys_id_seq', (SELECT MAX(id) FROM api_keys));
+```
+
+Merchants with the same name will be rejected from joining.
+
+**Output:**
+
+![list all database](../img/services_inDB/sameNameMerchants_reject.png)
+
+---
+
 ## How to Verify Deployment
 
 Run the backend:
@@ -223,7 +235,7 @@ PostgreSQL connected successfully
 
 This confirms:
 
--   Environment loaded correctly
--   PostgreSQL reachable
--   Credentials valid
--   DB connection pool healthy
+- Environment loaded correctly
+- PostgreSQL reachable
+- Credentials valid
+- DB connection pool healthy
