@@ -10,9 +10,18 @@ This is a personal learning project to understand Rain's payment infrastructure 
 
 ## Why Create Merchants?
 
-For a payment platform to function, external businesses need a way to join and access APIs. A merchant is simply a registered business that can make authenticated requests to the platform.
+A payment platform only works if other companies can connect to it and use its APIs.
+A merchant is simply a company that signs up on your platform and gets permission (API keys) to call your APIs.
 
-Without merchant registration, there's no entry point for businesses to use the payment infrastructure.
+Merchants use your APIs to:
+
+- create wallets for their users
+
+- accept payments
+
+- send payouts
+
+- check balances and transaction history
 
 ## Implementation: Merchant Registration
 
