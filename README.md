@@ -12,6 +12,7 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 - **Fund Flow Control** – Real-time balance validation and transaction ledger
 - **Card Issuing** – Virtual card provisioning with spending against wallet balance
 - **KYC Compliance** – Risk engine with transaction limits based on verification levels
+- **Account Freezing** – Immediate transaction lockdown for high-risk merchants
 - **Audit Trail** – Complete transaction history for compliance and reconciliation
 
 ## Core Features
@@ -48,6 +49,14 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 - Transaction blocking for unverified merchants
 - Complete audit trail of all blocked transactions
 
+### Phase 4.1: Account Freezing ✅
+
+- Immediate transaction lockdown for all merchants
+- Blocks deposits, withdrawals, and card spending
+- Applied before KYC limit checks
+- Used for suspicious activity, regulatory compliance, and account takeover prevention
+- Preserves all account data for audit trails
+
 ### Phase 5: Payment Processing (Coming Soon)
 
 - Direct payment processing from wallet
@@ -72,7 +81,7 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 ```
 ┌──────────────────────────────────────┐
 │   Merchants                          │
-└──────────────────────┬──────────────┘
+└──────────────────────┬───────────────┘
              │ (API Key Auth)
              ▼
 ┌───────────────────────────────────────────────────────────────────┐
@@ -86,23 +95,24 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 │  ├─ /cards                                                        │
 │  ├─ /cards/spend                                                  │
 │  ├─ /compliance/set-kyc                                           │
+│  ├─ /compliance/freeze                                            │
 │  └─ (Future: /payments, /webhooks)                                │
-└───────────────────────────────────────┬───────────────────────────┘
-             │
-             ▼
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+                              ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │   Core Services                                                   │
 │  ├─ Authentication Layer (API Key validation)                     │
-│  ├─ Risk Engine (KYC compliance checking)                         │
+│  ├─ Risk Engine (KYC compliance & freezing)                       │
 │  ├─ Ledger System (Transaction recording)                         │
 │  ├─ Balance Management                                            │
 │  └─ Transaction History                                           │
-└───────────────────────────────────────┬───────────────────────────┘
-             │
-             ▼
+└─────────────────────────────┬─────────────────────────────────────┘
+                              │
+                              ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │   PostgreSQL Database                                             │
-│  ├─ merchants table                                               │
+│  ├─ merchants table (id, name, kyc_level, is_frozen)              │
 │  ├─ api_keys table                                                │
 │  ├─ wallets table                                                 │
 │  ├─ cards table                                                   │
@@ -123,6 +133,18 @@ Before any withdrawal, transfer, or card spending, the system validates sufficie
 ### KYC-Enforced Limits
 
 Transaction limits are dynamically enforced based on merchant KYC verification level. Unverified merchants are blocked from all transactions. Each level provides increasing transaction capacity.
+
+| Level      | Max Single Tx | Max Balance | Use Case          |
+| ---------- | ------------- | ----------- | ----------------- |
+| Unverified | 0             | 0           | No transactions   |
+| Basic      | 100           | 500         | Retail customers  |
+| Standard   | 1,000         | 5,000       | Normal merchants  |
+| Business   | 10,000        | 50,000      | Business entities |
+| VIP        | 100,000       | 500,000     | Premium partners  |
+
+### Account Freezing
+
+Merchants with frozen accounts cannot perform any transactions (deposits, withdrawals, card spending). This is the highest level of transaction control and is applied immediately without any limit checks. Frozen accounts are used to contain high-risk or suspicious activity.
 
 ### Merchant-to-Merchant Transfers
 
@@ -203,14 +225,14 @@ curl -X POST http://localhost:3000/api/wallets/deposit \
 
 Transaction is validated against merchant's KYC transaction limit.
 
-### 4. Create Virtual Card
+### 5. Create Virtual Card
 
 ```bash
 curl -X POST http://localhost:3000/api/cards \
   -H "X-API-Key: MERCHANT_1_API_KEY"
 ```
 
-### 5. Spend with Card
+### 6. Spend with Card
 
 ```bash
 curl -X POST http://localhost:3000/api/cards/spend \
@@ -221,7 +243,7 @@ curl -X POST http://localhost:3000/api/cards/spend \
 
 Card spend is subject to both KYC limits and available balance.
 
-### 6. Transfer Between Merchants
+### 7. Transfer Between Merchants
 
 ```bash
 curl -X POST http://localhost:3000/api/wallets/transfer \
@@ -230,7 +252,24 @@ curl -X POST http://localhost:3000/api/wallets/transfer \
   -d '{"toMerchantId": 2, "amount": 30}'
 ```
 
-### 7. View Transaction History
+### 8. Freeze a Merchant Account
+
+```bash
+UPDATE merchants SET is_frozen = true WHERE id = 2;
+```
+
+Once frozen, the merchant cannot deposit, withdraw, or spend:
+
+```bash
+curl -X POST http://localhost:3000/api/wallets/deposit \
+  -H "X-API-Key: MERCHANT_2_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 10}'
+```
+
+Response: `{"error": "ACCOUNT_FROZEN"}` (HTTP 403)
+
+### 9. View Transaction History
 
 ```bash
 curl http://localhost:3000/api/wallets/transactions \
@@ -243,7 +282,7 @@ curl http://localhost:3000/api/wallets/transactions \
 - **Framework:** Express.js for REST API
 - **Database:** PostgreSQL 12+ for persistent storage
 - **Authentication:** API Key-based with database validation
-- **Compliance:** Risk engine with KYC-based transaction limits
+- **Compliance:** Risk engine with KYC-based transaction limits and account freezing
 - **Architecture:** Modular, service-oriented design
 
 ## Project Status
@@ -252,11 +291,12 @@ curl http://localhost:3000/api/wallets/transactions \
 - ✅ Phase 2: Wallet System (Balance tracking, deposits, withdrawals, transfers, ledger)
 - ✅ Phase 3: Card Issuing (Virtual cards, card spending, balance validation)
 - ✅ Phase 4: KYC Compliance (Risk engine, transaction limits, verification levels)
+- ✅ Phase 4.1: Account Freezing (Immediate transaction lockdown)
 - 🔄 Phase 5: Payment Processing (In design)
 - 🔄 Phase 6: Webhooks (In design)
 - 🔄 Phase 7: Production Polish (In design)
 
 ## Documentation
 
-- **Technical Implementation:** See **[Design_Implementation](./technical_doc/design_implementation.md)** for detailed architecture patterns, KYC testing flows, and step-by-step guides
-- **Database Setup:** See **[PostgreSQL_Setup](./technical_doc/PostgreSQL_setup_guide.md)** for PostgreSQL installation, schema definitions, and troubleshooting
+- **Technical Implementation:** See **[Design_Implementation](./payfi-platform/technical_doc/design_implementation.md)** for detailed architecture patterns, KYC testing flows, account freezing mechanics, and step-by-step guides
+- **Database Setup:** See **[PostgreSQL_Setup](./payfi-platform/technical_doc/PostgreSQL_setup_guide.md)** for PostgreSQL installation, schema definitions, and troubleshooting

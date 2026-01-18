@@ -1,46 +1,29 @@
 // ============================================================================
 // FILE: amlRules.ts
-// PURPOSE: Anti-Money Laundering (AML) detection rules engine
+// PURPOSE: Anti-Money Laundering detection rules
 // ============================================================================
 
-/**
- * AML Rules Engine
- *
- * Detects suspicious transaction patterns that may indicate money laundering.
- * This is a simplified educational version for demonstration purposes.
- */
-
-/**
- * detectStructuring
- *
- * Identifies "structuring" - a common money laundering technique where
- * a large sum is broken into many small transactions to evade detection.
- *
- * @param recentTransactions - Array of transaction amounts in a time window
- * @param threshold - The cumulative amount above which structuring is suspected
- * @returns true if structuring pattern detected, false otherwise
- *
- * Rule: If 3+ transactions total more than the threshold, flag for review
- */
+// Detect "structuring" - breaking large amounts into small transactions
+// Example: Splitting $10,000 into 10x $1,000 to avoid detection
+// @param recentTransactions - List of transaction amounts
+// @param threshold - Amount that triggers suspicion
+// @return true if structuring pattern detected
 export function detectStructuring(
     recentTransactions: number[],
     threshold: number
 ): boolean {
+    // Calculate total of all recent transactions
     const total = recentTransactions.reduce((a, b) => a + b, 0);
+
+    // Flag if 3+ transactions total more than threshold
     return recentTransactions.length >= 3 && total > threshold;
 }
 
-/**
- * detectHighFrequency
- *
- * Identifies unusually high transaction frequency within a short time window.
- * Multiple rapid transactions can indicate automated fraud or money laundering.
- *
- * @param txCountLastMinute - Number of transactions in the last minute
- * @returns true if frequency exceeds safe threshold, false otherwise
- *
- * Rule: More than 5 transactions per minute is suspicious
- */
+// Detect high transaction frequency (potential automated fraud)
+// Example: 10 transactions in 1 minute is suspicious
+// @param txCountLastMinute - Number of transactions in last 60 seconds
+// @return true if frequency is too high
 export function detectHighFrequency(txCountLastMinute: number): boolean {
+    // Flag if more than 5 transactions per minute
     return txCountLastMinute > 5;
 }
