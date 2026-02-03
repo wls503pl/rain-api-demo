@@ -52,7 +52,7 @@ curl -X POST http://localhost:3000/api/merchants \
 
 ## Why API Key Authentication?
 
-Once merchants register, the platform must verify every request actually comes from that merchant. An API Key acts as credentialsâ€"like a username/password, but for automated systems.
+Once merchants register, the platform must verify every request actually comes from that merchant. An API Key acts as credential like a username/password, but for automated systems.
 
 Without authentication, anyone could pretend to be a merchant and access their wallets or issue cards on their behalf.
 
