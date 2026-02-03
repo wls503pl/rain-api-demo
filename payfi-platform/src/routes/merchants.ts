@@ -22,6 +22,18 @@ router.post("/merchants", async (req, res) => {
     }
 
     try {
+        // Check if merchant name already exists
+        const existingMerchant = await query(
+            "SELECT id FROM merchants WHERE name = $1",
+            [name]
+        );
+
+        if (existingMerchant.rows.length > 0) {
+            return res
+                .status(409)
+                .json({ error: "Merchant name already exists" });
+        }
+
         // Insert new merchant record in database
         // Returns auto-generated merchant ID
         const result = await query(
