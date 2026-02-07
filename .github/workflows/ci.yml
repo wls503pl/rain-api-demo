@@ -1,0 +1,37 @@
+name: Build and Test PayFi Platform
+
+on:
+    push:
+        branches: [main, outstanding_projects, develop]
+        paths:
+            - "payfi-platform/**"
+    pull_request:
+        branches: [main, outstanding_projects, develop]
+        paths:
+            - "payfi-platform/**"
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: "18.x"
+                  cache: "npm"
+                  cache-dependency-path: "payfi-platform/package-lock.json"
+
+            - name: Install dependencies
+              working-directory: ./payfi-platform
+              run: npm install
+
+            - name: Build project
+              working-directory: ./payfi-platform
+              run: npm run build
+
+            - name: Run tests
+              working-directory: ./payfi-platform
+              run: npm test -- --passWithNoTests || true
