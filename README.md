@@ -57,11 +57,12 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 - Used for suspicious activity, regulatory compliance, and account takeover prevention
 - Preserves all account data for audit trails
 
-### Phase 5: Payment Processing (Coming Soon)
+### Phase 5: Payment Processing ✅
 
-- Direct payment processing from wallet
-- Settlement and reconciliation
-- Multi-merchant transaction support
+- Direct merchant-to-merchant payment processing
+- Single and batch payment endpoints with merchant license requirement
+- Payment reconciliation with optional date-range filtering
+- Complete transaction audit trail for settlements
 
 ### Phase 6: Webhooks (Coming Soon)
 
@@ -94,9 +95,12 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 │  ├─ /wallets/transactions                                         │
 │  ├─ /cards                                                        │
 │  ├─ /cards/spend                                                  │
+│  ├─ /payments/pay                                                 │
+│  ├─ /payments/batch                                               │
+│  ├─ /payments/reconcile                                           │
 │  ├─ /compliance/set-kyc                                           │
 │  ├─ /compliance/freeze                                            │
-│  └─ (Future: /payments, /webhooks)                                │
+│  └─ (Future: /webhooks)                                           │
 └─────────────────────────────┬─────────────────────────────────────┘
                               │
                               ▼
@@ -269,7 +273,50 @@ curl -X POST http://localhost:3000/api/wallets/deposit \
 
 Response: `{"error": "ACCOUNT_FROZEN"}` (HTTP 403)
 
-### 9. View Transaction History
+### 9. Single Direct Payment
+
+```bash
+curl -X POST http://localhost:3000/api/payments/pay \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -d '{"toMerchantId": 2, "amount": 50, "description": "Payment", "reference": "INV-001"}'
+```
+
+Processes a payment from Merchant 1 to Merchant 2. Requires merchant license.
+
+### 10. Batch Payments
+
+```bash
+curl -X POST http://localhost:3000/api/payments/batch \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -d '{
+    "payments": [
+      {"toMerchantId": 2, "amount": 100},
+      {"toMerchantId": 3, "amount": 50}
+    ]
+  }'
+```
+
+Processes multiple payments in a single request. All succeed or all fail atomically.
+
+### 11. Payment Reconciliation
+
+```bash
+curl http://localhost:3000/api/payments/reconcile \
+  -H "X-API-Key: MERCHANT_1_API_KEY"
+```
+
+Retrieves complete transaction history and balance verification.
+
+**With date range:**
+
+```bash
+curl "http://localhost:3000/api/payments/reconcile?startDate=2023-01-01&endDate=2023-12-31" \
+  -H "X-API-Key: MERCHANT_1_API_KEY"
+```
+
+### 12. View Transaction History
 
 ```bash
 curl http://localhost:3000/api/wallets/transactions \
@@ -292,7 +339,7 @@ curl http://localhost:3000/api/wallets/transactions \
 - ✅ Phase 3: Card Issuing (Virtual cards, card spending, balance validation)
 - ✅ Phase 4: KYC Compliance (Risk engine, transaction limits, verification levels)
 - ✅ Phase 4.1: Account Freezing (Immediate transaction lockdown)
-- 🔄 Phase 5: Payment Processing (In design)
+- ✅ Phase 5: Payment Processing (Direct payments, batch payments, reconciliation)
 - 🔄 Phase 6: Webhooks (In design)
 - 🔄 Phase 7: Production Polish (In design)
 

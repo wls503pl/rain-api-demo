@@ -218,6 +218,35 @@ Merchants with the same name will be rejected from joining.
 
 ---
 
+### 5. Payment Processing - Transaction Type Constraint
+
+**Background:**
+
+With Phase 5 payment processing implementation, the system now supports direct payment transactions in addition to the initial transaction types (deposit, withdraw, transfer_in, transfer_out, card_spend).
+
+**Issue:**
+
+The database contains a strict constraint named `transactions_type_check` that restricts the `type` field in the transactions table to only five values: `deposit`, `withdraw`, `transfer_in`, `transfer_out`, and `card_spend`. When attempting to insert a `payment` transaction type, the database rejects the operation because `payment` is not in the allowed list, causing payment processing to fail.
+
+**Fix:**
+
+Run the following SQL statements to update the constraint and support the `payment` transaction type:
+
+```sql
+ALTER TABLE transactions DROP CONSTRAINT transactions_type_check;
+ALTER TABLE transactions ADD CONSTRAINT transactions_type_check
+CHECK (type = ANY (ARRAY['deposit'::text, 'withdraw'::text, 'transfer_in'::text, 'transfer_out'::text, 'card_spend'::text, 'payment'::text]));
+```
+
+These statements:
+
+- Remove the old restrictive constraint
+- Add a new constraint that includes `payment` as a valid transaction type
+
+After running these commands, the payment processing functionality will operate correctly and accept payment transactions in the ledger system.
+
+---
+
 ## How to Verify Deployment
 
 Run the backend:
@@ -238,4 +267,6 @@ This confirms:
 - Environment loaded correctly
 - PostgreSQL reachable
 - Credentials valid
+- DB connection pool healthy
+
 - DB connection pool healthy

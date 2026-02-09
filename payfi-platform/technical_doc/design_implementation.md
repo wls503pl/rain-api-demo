@@ -692,6 +692,228 @@ Request Flow:
 
 ---
 
+# Phase 5: Payment Processing
+
+## Why Direct Payment Transactions?
+
+Merchants need the ability to send direct payments to each other without going through card spending or wallet transfers. A payment transaction is a direct fund movement from one merchant's wallet to another, processed through the payment API. This enables:
+
+- Direct merchant-to-merchant settlements
+- Invoice-based payments
+- Supplier payments and reimbursements
+- Flexible payment workflows beyond card spending
+
+Payment transactions are recorded in the ledger as a new transaction type alongside deposit, withdraw, transfer_in, transfer_out, and card_spend.
+
+## Implementation: Single Payment and Batch Payment Endpoints
+
+Create file:
+
+```
+touch src/routes/payments.ts
+```
+
+This file handles payment processing. Two endpoints are supported:
+
+### Single Direct Payment Endpoint
+
+**Single Direct Payment (Merchant License Required):**
+
+Route: `POST /api/payments/pay`
+
+Processes a single payment from one merchant to another. The sender merchant's wallet is debited and the receiver's wallet is credited.
+
+```bash
+curl -X POST http://localhost:3000/api/payments/pay \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{
+    "toMerchantId": 1,
+    "amount": 50,
+    "description": "Software License Fee",
+    "reference": "INV-2023-001"
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+    "message": "Payment successful",
+    "transaction": {
+        "merchantId": 1,
+        "amount": 50,
+        "newBalance": 50,
+        "reference": "INV-2023-001"
+    }
+}
+```
+
+**Output:**
+
+![Single Direct Payment](../img/payment_processing/single_direct_pay.png)
+
+---
+
+**Batch Payment Processing (Multiple Payments):**
+
+Route: `POST /api/payments/batch`
+
+Processes multiple payments in a single request. Each payment is recorded as a separate transaction. The sender's wallet is debited for the total amount, and each receiver's wallet is credited individually.
+
+```bash
+curl -X POST http://localhost:3000/api/payments/batch \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{
+    "payments": [
+      {"toMerchantId": 1, "amount": 100},
+      {"toMerchantId": 3, "amount": 50}
+    ]
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+    "message": "Batch payments successful",
+    "finalBalance": 800
+}
+```
+
+**Output:**
+
+![Batch Payment Processing](../img/payment_processing/patch_payment_to1_3.png)
+
+---
+
+## Payment Reconciliation: Audit and Settlement Verification
+
+To ensure all payments are properly recorded and settled, merchants can reconcile their transaction history by querying their account statement.
+
+Route: `GET /api/payments/reconcile`
+
+Retrieves the complete transaction history for a merchant, including all payment types (deposit, withdraw, card_spend, transfer_in, transfer_out, payment) with aggregated totals.
+
+**Query all transactions (default):**
+
+```bash
+curl http://localhost:3000/api/payments/reconcile \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Example Response:**
+
+The reconciliation endpoint returns:
+
+- `merchantId`: The authenticated merchant
+- `currentBalance`: Current wallet balance
+- `period`: Time period (empty for all transactions, or specified date range)
+- `summary`: Aggregated transaction totals by type
+- `reconciliationStatus`: Status indicating MATCHED (all transactions accounted for)
+
+**Output:**
+
+![Payment Reconciliation](../img/payment_processing/company1_reconcile.png)
+
+---
+
+**Query with date range (Specified Period):**
+
+Use `startDate` and `endDate` query parameters to reconcile a specific period (ISO 8601 format).
+
+```bash
+curl "http://localhost:3000/api/payments/reconcile?startDate=2023-01-01&endDate=2023-12-31" \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+**Example Response:**
+
+```json
+{
+  "merchantId": 2,
+  "currentBalance": 800.000000,
+  "period": {
+    "startDate": "2023-01-01",
+    "endDate": "2023-12-31"
+  },
+  "summary": [...],
+  "reconciliationStatus": "MATCHED"
+}
+```
+
+**Output:**
+
+![Reconciliation with Date Range](../img/payment_processing/company2_reconcile_specified_date.png)
+
+---
+
+## Payment License Requirement
+
+Single payments require a **Merchant License** to process payments. This is a security and compliance feature that prevents unauthorized payments. Merchants must have their payment capability explicitly enabled before they can send payments through the `/api/payments/pay` endpoint.
+
+Batch payments work on the same licensing model—a merchant must have valid payment license to execute batch payment operations.
+
+---
+
+## Three Merchants Test Setup
+
+The payment processing feature is tested with three merchants:
+
+**Test Merchants:**
+
+- **Merchant 1**: API Key `2071704a828e63776171a2464490d0574ebdd6ecaeb0ec09`
+- **Merchant 2**: API Key `ce177307149fa67e2b6d4af2af1fb712ace23a6b7545be6b`
+- **Merchant 3**: API Key `6403794542622781b57e989151bbf66d590512b2221c4dc6`
+
+**Workflow:**
+
+1. Merchant 1 sends single payment to Merchant 2
+2. Merchant 1 sends batch payments to Merchants 2 and 3
+3. Each merchant queries reconciliation to verify transaction history and balance accuracy
+
+These three merchants interact to demonstrate complete payment processing workflows including single payments, batch payments, and reconciliation verification across multiple accounts.
+
+---
+
+## How Payment Transactions Differ from Transfers
+
+**Transfer** (Phase 2 - Wallet System):
+
+- Simulates internal fund movement between wallet accounts
+- Used for balance adjustments and test scenarios
+- Not a merchant-intended operation
+
+**Payment** (Phase 5 - Payment Processing):
+
+- Direct, intentional merchant-to-merchant fund movement
+- Recorded with business context (reference, description)
+- Part of the ledger for settlement and reconciliation
+- Supports batch processing for efficiency
+- Primary mechanism for merchant fund settlements
+
+---
+
+## Database Impact: Payment Transaction Type
+
+The transactions table now accepts a new `type` value: `payment`. This requires updating the database constraint (see [PostgreSQL Setup - Phase 5 Payment Processing](./PostgreSQL_setup_guide.md#5-phase-5-payment-processing---transaction-type-constraint)).
+
+After updating the constraint, all three payment endpoints (single, batch, reconcile) will function correctly and record transactions in the ledger.
+
+---
+
+## What This Enables
+
+- Merchants can send direct payments to other merchants
+- Efficient batch payment processing for multiple recipients
+- Complete audit trail through payment reconciliation
+- Settlement verification with date-range filtering
+- Foundation for advanced features like payment scheduling and multi-currency payments
+- Compliance support through comprehensive transaction history
+
+---
+
 # Database Persistence
 
 ## Migration from In-Memory to PostgreSQL
@@ -734,6 +956,12 @@ For detailed setup instructions, database installation, schema DDL, and PostgreS
 ---
 
 ## What This Enables
+
+- **Data Persistence**: All merchant data survives server restarts
+- **Audit Trail**: Complete PostgreSQL transaction history for compliance and debugging
+- **Scalability**: Database queries are more efficient than in-memory lookups at scale
+- **Reliability**: PostgreSQL's ACID compliance ensures financial data consistency
+- **Multi-Instance**: Multiple server instances can share the same database for horizontal scaling
 
 - **Data Persistence**: All merchant data survives server restarts
 - **Audit Trail**: Complete PostgreSQL transaction history for compliance and debugging
