@@ -247,6 +247,17 @@ After running these commands, the payment processing functionality will operate 
 
 ---
 
+### 6. Webhooks Functionality Implementation and Verification
+
+To store the merchant's webhook URL, you need to add a new column to the merchants table. Execute the following SQL statement in your PostgreSQL database:
+
+```sql
+ALTER TABLE merchants
+ADD COLUMN IF NOT EXISTS webhook_url VARCHAR(255);
+```
+
+---
+
 ## How to Verify Deployment
 
 Run the backend:

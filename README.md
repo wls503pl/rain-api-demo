@@ -64,18 +64,14 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 - Payment reconciliation with optional date-range filtering
 - Complete transaction audit trail for settlements
 
-### Phase 6: Webhooks (Coming Soon)
+### Phase 6: Webhooks ✅
 
-- Event-driven architecture for real-time notifications
-- Merchant receives updates on transaction state changes
-- Reliable delivery with retry logic
-
-### Phase 7: Production Polish (Coming Soon)
-
-- Enhanced error handling
-- Rate limiting and DDoS protection
-- Comprehensive API documentation
-- SDK support for common languages
+- Event-driven architecture for real-time merchant notifications
+- Asynchronous webhook delivery to merchant-configured endpoints
+- Multiple event types: payment.success, balance.updated, kyc.updated
+- Webhook configuration via API with persistent storage
+- Complete webhook delivery logs for debugging and monitoring
+- ngrok integration for local testing and verification
 
 ## Architecture
 
@@ -100,7 +96,7 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 │  ├─ /payments/reconcile                                           │
 │  ├─ /compliance/set-kyc                                           │
 │  ├─ /compliance/freeze                                            │
-│  └─ (Future: /webhooks)                                           │
+│  └─ /webhooks/config                                              │
 └─────────────────────────────┬─────────────────────────────────────┘
                               │
                               ▼
@@ -110,13 +106,14 @@ PayFi is a simulated payment platform that demonstrates the core infrastructure 
 │  ├─ Risk Engine (KYC compliance & freezing)                       │
 │  ├─ Ledger System (Transaction recording)                         │
 │  ├─ Balance Management                                            │
-│  └─ Transaction History                                           │
+│  ├─ Transaction History                                           │
+│  └─ Webhook Service (Event delivery)                              │
 └─────────────────────────────┬─────────────────────────────────────┘
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │   PostgreSQL Database                                             │
-│  ├─ merchants table (id, name, kyc_level, is_frozen)              │
+│  ├─ merchants table (id, name, kyc_level, is_frozen, webhook_url)│
 │  ├─ api_keys table                                                │
 │  ├─ wallets table                                                 │
 │  ├─ cards table                                                   │
@@ -300,7 +297,18 @@ curl -X POST http://localhost:3000/api/payments/batch \
 
 Processes multiple payments in a single request. All succeed or all fail atomically.
 
-### 11. Payment Reconciliation
+### 11. Configure Webhooks
+
+```bash
+curl -X POST http://localhost:3000/api/webhooks/config \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: MERCHANT_1_API_KEY" \
+  -d '{"url":"https://your-webhook-endpoint.com"}'
+```
+
+Merchants configure their webhook endpoint to receive real-time event notifications (payment.success, balance.updated, kyc.updated).
+
+### 12. Payment Reconciliation
 
 ```bash
 curl http://localhost:3000/api/payments/reconcile \
@@ -316,7 +324,7 @@ curl "http://localhost:3000/api/payments/reconcile?startDate=2023-01-01&endDate=
   -H "X-API-Key: MERCHANT_1_API_KEY"
 ```
 
-### 12. View Transaction History
+### 13. View Transaction History
 
 ```bash
 curl http://localhost:3000/api/wallets/transactions \
@@ -340,8 +348,7 @@ curl http://localhost:3000/api/wallets/transactions \
 - ✅ Phase 4: KYC Compliance (Risk engine, transaction limits, verification levels)
 - ✅ Phase 4.1: Account Freezing (Immediate transaction lockdown)
 - ✅ Phase 5: Payment Processing (Direct payments, batch payments, reconciliation)
-- 🔄 Phase 6: Webhooks (In design)
-- 🔄 Phase 7: Production Polish (In design)
+- ✅ Phase 6: Webhooks (Real-time event notifications, webhook configuration, testing)
 
 ## Documentation
 

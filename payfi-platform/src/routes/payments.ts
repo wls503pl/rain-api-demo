@@ -7,6 +7,7 @@ import { apiKeyAuth } from "../middleware/auth";
 import { query } from "../db";
 import { evaluateRisk } from "../compliance/riskEngine";
 import { getMerchantCompliance } from "./compliance";
+import { triggerWebhook, WebhookEvent } from "../services/webhookService";
 
 const router = Router();
 
@@ -84,6 +85,15 @@ router.post("/payments/pay", apiKeyAuth, async (req: any, res) => {
                 newBalance,
                 reference,
             },
+        });
+
+        // Trigger Webhook
+        triggerWebhook(merchantId, WebhookEvent.PAYMENT_SUCCESS, {
+            amount,
+            newBalance,
+            reference,
+            description,
+            type: "payment",
         });
     } catch (err) {
         await query("ROLLBACK");
@@ -184,6 +194,13 @@ router.post("/payments/batch", apiKeyAuth, async (req: any, res) => {
         await query("COMMIT");
         res.json({
             message: "Batch payments successful",
+            finalBalance: currentSenderBalance,
+        });
+
+        // Trigger Webhook for sender
+        triggerWebhook(senderId, WebhookEvent.BALANCE_UPDATED, {
+            event: "batch_payment_sent",
+            totalAmount,
             finalBalance: currentSenderBalance,
         });
     } catch (err: any) {

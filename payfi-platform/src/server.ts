@@ -13,6 +13,7 @@ import walletRoutes from "./routes/wallets";
 import cardRoutes from "./routes/cards";
 import complianceRoutes from "./routes/compliance";
 import paymentRoutes from "./routes/payments";
+import webhookRoutes from "./routes/webhooks";
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api", walletRoutes); // Wallet operations
 app.use("/api", cardRoutes); // Card operations
 app.use("/api", complianceRoutes); // KYC management
 app.use("/api", paymentRoutes); // Payment Processing
+app.use("/api", webhookRoutes); // Webhooks
 
 // Start server on port 3000
 const PORT = 3000;

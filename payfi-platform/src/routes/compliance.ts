@@ -7,6 +7,7 @@ import { Router } from "express";
 import { apiKeyAuth } from "../middleware/auth";
 import { KYCLevel, KYC_LEVELS } from "../compliance/kycLevels";
 import { query } from "../db";
+import { triggerWebhook, WebhookEvent } from "../services/webhookService";
 
 const router = Router();
 
@@ -29,6 +30,12 @@ router.post("/compliance/set-kyc", apiKeyAuth, async (req: any, res) => {
         ]);
 
         res.json({ message: "KYC updated", merchantId, level });
+
+        // Trigger Webhook
+        triggerWebhook(merchantId, WebhookEvent.KYC_UPDATED, {
+            newLevel: level,
+            timestamp: new Date().toISOString(),
+        });
     } catch (err) {
         console.error("Failed to update KYC:", err);
         res.status(500).json({ error: "Failed to update KYC" });
